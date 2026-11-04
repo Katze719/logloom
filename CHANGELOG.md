@@ -3,9 +3,14 @@
 All notable changes to logloom are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-No releases yet; everything below is waiting for its first tag.
 
 ## [Unreleased]
+
+### Changed
+
+- Document crates.io installation and the published Rust library dependency.
+
+## [0.1.0] - 2026-11-04
 
 ### Added
 

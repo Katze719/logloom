@@ -1,13 +1,13 @@
 # The Rust bits
 
-## Add a local dependency
+## Add the crate
 
-There's no crates.io release yet. Point this at your checkout:
+Use the [published crate](https://crates.io/crates/logloom) with Rust 1.99 or newer:
 
 ```toml
 [dependencies]
-logloom = { path = "../logloom" }
-serde_json = "1.0.154"
+logloom = "0.1.0"
+serde_json = "1.0"
 ```
 
 ## Parse, validate, serialize

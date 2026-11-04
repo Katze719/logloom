@@ -5,6 +5,15 @@
 Use Rust 1.99.1, edition 2024. `rust-toolchain.toml` pins it, CI uses it, and
 rustup will pick it up. A distro install of the same version works too.
 
+From a checkout, try the CLI or install your local build:
+
+```sh
+cargo run -- parse examples/keep-a-changelog.md
+cargo install --path . --locked
+```
+
+Then run the checks:
+
 ```sh
 cargo fmt --all -- --check
 cargo clippy --all-targets --all-features -- -D warnings
@@ -56,7 +65,7 @@ The fixtures include normal changelogs and things a changelog probably shouldn't
 3. Test the normal input, the weird input, and the broken input through the API and CLI.
 4. Write down the syntax and limits, link the example from the README, and run the checks above.
 
-The rules live in [AGENTS.md](../AGENTS.md) and the mandatory
-[Namtao Rust guidelines](https://www.namtao.com/rust/). Cargo.toml and clippy.toml
-enforce them. Clippy is picky on purpose: fix the code when it complains.
+[Cargo.toml](../Cargo.toml) and [clippy.toml](../clippy.toml) enforce the
+[Namtao Rust guidelines](https://www.namtao.com/rust/).
+Clippy is picky on purpose: fix the code when it complains.
 Keep production code free of panics and unsafe code, and keep the lint settings strict.

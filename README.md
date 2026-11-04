@@ -21,10 +21,10 @@ Yes, there are this many ways to write down "fixed a bug".
 
 ## Install
 
-Grab a checkout and Rust 1.99.1, then:
+Install from [crates.io](https://crates.io/crates/logloom) with Rust 1.99 or newer:
 
 ```sh
-cargo install --path . --locked
+cargo install logloom --locked
 ```
 
 ## Usage
@@ -44,13 +44,8 @@ No file argument? It'll read `CHANGELOG.md` in the current directory.
 The result goes to stdout, complaints go to stderr. JSON is the default.
 If there's an error, stdout stays empty.
 
-Try it straight from the checkout:
-
-```sh
-cargo run -- parse examples/keep-a-changelog.md
-```
-
-More examples, the Rust API, and the small print live in the [docs](docs/README.md).
+Using it from Rust? See the [library guide](docs/library.md).
+More examples and the small print live in the [docs](docs/README.md).
 Project changes live in the [changelog](CHANGELOG.md).
 
 ## License

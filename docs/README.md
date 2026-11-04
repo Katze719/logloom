@@ -1,6 +1,7 @@
 # Docs
 
 Pick the bit you need. Reading these in order is entirely optional.
+Start with [CLI installation](../README.md#install) or [adding the Rust crate](library.md#add-the-crate).
 
 | Here for… | Go here |
 | --- | --- |
