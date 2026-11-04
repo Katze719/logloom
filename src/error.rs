@@ -6,7 +6,7 @@ use std::fmt;
 pub enum ErrorKind {
     /// No non-whitespace content was supplied.
     EmptyInput,
-    /// No level-two release heading was found.
+    /// No release heading recognized by the selected format was found.
     NoReleases,
     /// A release heading could not be interpreted without guessing.
     MalformedHeading,
@@ -14,6 +14,8 @@ pub enum ErrorKind {
     UnsupportedStructure,
     /// The input exceeds a documented size or nesting limit.
     ResourceLimit,
+    /// A structured input (for example JSON or a Debian record) is malformed.
+    MalformedInput,
 }
 
 /// A structured parsing failure with an optional one-based source line.

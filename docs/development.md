@@ -1,10 +1,9 @@
-# Development
+# Poking the code
 
 ## Build and check
 
-Use stable Rust 1.99.1 (edition 2024), pinned in `rust-toolchain.toml` and CI.
-rustup users get the pinned toolchain; a distribution-provided installation of
-the same version also works. Nightly is unnecessary.
+Use Rust 1.99.1, edition 2024. `rust-toolchain.toml` pins it, CI uses it, and
+rustup will pick it up. A distro install of the same version works too.
 
 ```sh
 cargo fmt --all -- --check
@@ -15,11 +14,11 @@ cargo test --doc
 cargo doc --no-deps
 ```
 
-Optional tools: `bacon clippy` and `cargo nextest run --all-features`. CI runs the
-required checks and additionally uses nextest when installed. Fixtures cover
-standard, unconventional, malformed, rich, and nested Markdown inputs.
+`bacon clippy` is handy while editing. `cargo nextest run --all-features` also
+works. CI runs the required checks and uses nextest when it's installed.
+The fixtures include normal changelogs and things a changelog probably shouldn't do.
 
-## Code map
+## Where things live
 
 | File | Responsibility |
 | --- | --- |
@@ -27,12 +26,13 @@ standard, unconventional, malformed, rich, and nested Markdown inputs.
 | [`src/model.rs`](../src/model.rs) | Owned, format-independent, Serde-compatible types |
 | [`src/error.rs`](../src/error.rs) | Typed parsing failures |
 | [`src/parsers/`](../src/parsers/) | Format implementations |
+| [`src/parsers/markdown.rs`](../src/parsers/markdown.rs) | Shared Markdown blocks, links, and nesting limits |
 | [`src/validation.rs`](../src/validation.rs) | Convention checks, separate from parsing |
 | [`src/cli.rs`](../src/cli.rs) | Argument parsing, I/O, and exit codes; uses the public API |
 | [`src/diagnostics.rs`](../src/diagnostics.rs) | Source annotations and colors |
 | [`src/diagnostics/`](../src/diagnostics/) | Format-specific correction hints |
 
-## Design choices
+## Why these bits
 
 | Choice | Reason |
 | --- | --- |
@@ -41,15 +41,16 @@ standard, unconventional, malformed, rich, and nested Markdown inputs.
 | clap derive, Serde, serde_json | CLI arguments and JSON |
 | annotate-snippets | Source diagnostics directly; color-eyre was unnecessary |
 | Small calendar check | No chrono/jiff dependency needed for date-only validation |
+| Flat Changesets mapping reader | Supports the fragment mapping subset; rejects unsupported YAML instead of evaluating aliases or templates |
 
-## Adding a format
+## Add a format
 
-1. Extend `Format` and add a parser using the existing model; no parser trait is required.
-2. Add format-specific diagnostic hints and a document in `examples/`.
-3. Cover supported constructs and failures with fixtures and public API/CLI tests.
-4. Document syntax and limits, link the example from the README, and run the checks above.
+1. Add it to `Format` and the CLI. Parse into the existing model and store the format for validation.
+2. Give it useful error hints and a file in `examples/`.
+3. Test the normal input, the weird input, and the broken input through the API and CLI.
+4. Write down the syntax and limits, link the example from the README, and run the checks above.
 
-Follow [AGENTS.md](../AGENTS.md) and the mandatory
-[Namtao Rust guidelines](https://www.namtao.com/rust/). Their strict Clippy rules
-and test exceptions are enforced in Cargo.toml and clippy.toml. Production code
-must avoid panics and unsafe code; do not silence lints to bypass these rules.
+The rules live in [AGENTS.md](../AGENTS.md) and the mandatory
+[Namtao Rust guidelines](https://www.namtao.com/rust/). Cargo.toml and clippy.toml
+enforce them. Clippy is picky on purpose: fix the code when it complains.
+Keep production code free of panics and unsafe code, and keep the lint settings strict.

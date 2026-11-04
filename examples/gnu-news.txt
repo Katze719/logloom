@@ -1,0 +1,26 @@
+GNU Lantern NEWS
+
+* Noteworthy changes in release ?.? (????-??-??) [?]
+
+** New features
+
+  Streaming exports are being prepared.
+
+* Noteworthy changes in release 2.0 (2026-11-04) [stable]
+
+** Bug fixes
+
+  File imports preserve Unicode paths.
+  Continuation lines stay in the same entry.
+
+  Empty exports no longer contain a spurious record.
+
+** New features
+
+  The export command accepts a stream of records.
+
+* Noteworthy changes in release 1.0 (2026-10-01)
+
+** Changes
+
+  Initial public release.

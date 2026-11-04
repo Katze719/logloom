@@ -1,8 +1,8 @@
-# JSON and data model
+# JSON
 
 ## Select release identifiers
 
-With the optional external tool jq, from the repository root:
+With jq installed, run this from the repo root:
 
 ```sh
 logloom parse examples/keep-a-changelog.md | jq '.releases[].version'
@@ -14,8 +14,9 @@ null
 "2.0.0"
 ```
 
-This is a stream of three JSON values. `null` identifies pending changes
-(Unreleased); other identifiers remain strings and need not be SemVer.
+Three JSON values. Here, `null` means Unreleased. Other formats also use null for
+unversioned notes or date/author records; their attributes tell you which.
+Version strings stay strings. SemVer arguments can happen elsewhere.
 
 ## Select entries
 
@@ -31,31 +32,40 @@ logloom parse examples/keep-a-changelog.md \
 }
 ```
 
-List markers stay in the Markdown. Nested lists and multi-paragraph items stay
-inside their parent entry; other blocks become separate `markdown` entries.
+List markers stay in. Nested lists and extra paragraphs stay with their parent
+item. Other Markdown blocks get separate `markdown` entries; plain text and
+reStructuredText can use `text`.
 
-## Field guide
+## What's in there
 
-| Field | Contents |
+| Field | What you get |
 | --- | --- |
+| `format` | Source format, e.g. `changesets`; used by validation |
 | `metadata` | Optional plain-text `title` and introductory Markdown `description` |
 | `releases` | Releases, including pending changes, in document order |
 | `releases[].version`, `.date` | Optional opaque identifier and original date text |
-| `releases[].heading`, `.link`, `.yanked` | Original heading Markdown, resolved heading URL, withdrawal flag |
+| `releases[].heading`, `.link`, `.yanked` | Heading text (decoded title for JSON), resolved heading URL, withdrawal flag |
+| `releases[].attributes` | Optional string attributes such as package, bump, author, fragment type, or original timestamp |
 | `releases[].sections` | Ordered groups; `category: null` means uncategorized content |
+| `sections[].component` | Optional component name, e.g. `"Firmware components"`; omitted for ordinary sections |
 | `sections[].category` | Tagged category, e.g. `{"kind":"added"}` or `{"kind":"custom","name":"Performance"}` |
 | `sections[].heading`, `.entries` | Optional original heading and ordered entries |
-| `entries[].markdown`, `.kind` | Source Markdown and `list_item` or `markdown` |
+| `entries[].markdown`, `.kind` | Original content and `list_item`, `markdown`, or `text` |
 | `links` | Effective reference definitions (`label`, `destination`, optional `title`), in source order |
 | `source` | Exact input, including comments, whitespace, and original line endings |
 
-## Source locations and ownership
+## Where did this come from
 
-Releases, sections, entries, and link definitions carry a `span` with half-open
-UTF-8 byte offsets (`start`, `end`) and a one-based `line` in `source`.
+Releases, sections, entries, and link definitions have a `span`. `start` and `end`
+count UTF-8 bytes in `source`, with the end excluded. Lines start at 1.
+`date_span` points at dates outside headings, like a Debian trailer. Decoded
+GitHub bodies point at their containing JSON token.
 
-The owned model implements Serde serialization and deserialization. Keeping the
-original source costs memory but preserves unused or duplicate definitions and
-unfamiliar syntax. Editing fields does not rewrite `source` or recalculate spans;
-deserialization does not run validation automatically. This is an extraction
-model, not a Markdown renderer or round-trip editor.
+The model owns its data and supports Serde in both directions. The source copy
+costs some RAM; it keeps comments, whitespace, duplicate definitions, and syntax
+we don't interpret.
+
+Edit model fields as needed. `source` and spans still describe the original file;
+this isn't a Markdown editor. Run validation after deserializing if you need it.
+Older JSON without `format` defaults to Keep a Changelog. Missing attributes,
+component names, and date spans get their empty defaults.

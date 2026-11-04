@@ -1,0 +1,3 @@
+Preserve Unicode paths when importing records with ``read_file``.
+
+The fix also applies to nested directories.

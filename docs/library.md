@@ -1,8 +1,8 @@
-# Library usage
+# The Rust bits
 
 ## Add a local dependency
 
-The package is not published to crates.io. Adjust the path for your application:
+There's no crates.io release yet. Point this at your checkout:
 
 ```toml
 [dependencies]
@@ -31,21 +31,38 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-`parse` accepts an in-memory string and performs no filesystem access. Validation
-is separate: impossible dates remain in the parsed model until you check them.
+Feed `parse` a string; file reading is your call. Then use `validate` to check the
+contents. Parsing will happily retain an impossible date so you can inspect it.
+
+`validate` uses the format stored in the model. A Changesets file won't get
+lectured about missing release dates.
+
+## Named fragments
+
+```rust
+use logloom::{parse_named, Format};
+
+let changelog = parse_named("Fix Unicode paths.", Format::Towncrier, "123.bugfix.rst")?;
+# Ok::<(), logloom::ParseError>(())
+```
+
+Towncrier puts the issue and type in the filename. Pass that name along; nothing
+gets opened. The CLI does this for files. For stdin, use `--fragment-name`.
 
 ## Results and errors
 
 | API | Result |
 | --- | --- |
 | `parse(&str, Format)` | `Result<Changelog, ParseError>` |
+| `parse_named(&str, Format, &str)` | Same result, using Towncrier fragment filename metadata |
 | `validate(&Changelog)` | `Vec<Diagnostic>`; does not sort or mutate content |
+| `validate_for_format(&Changelog, Format)` | Explicit override of the stored validation format |
 | `serde_json::to_string_pretty(&changelog)` | JSON serialization |
 
-`ParseError` provides `kind`, `line`, and `message`. Its kinds distinguish empty
-input, missing releases, malformed headings, unsupported structure, and resource
-limits. `Diagnostic` provides `severity`, `code`, `line`, and `message`.
+`ParseError` gives you `kind`, `line`, and `message`: empty input, missing
+releases, malformed headings/data, unsupported structure, or a resource limit.
+`Diagnostic` gives you `severity`, `code`, `line`, and `message`.
 
-The CLI adds colors and source annotations; library errors stay independent of
-that presentation. For all public types and fields, run `cargo doc --no-deps --open`.
-See the [data model](json.md) and [format rules](formats/keep-a-changelog.md).
+The CLI adds the colors and source annotations. In Rust you get plain typed errors.
+For every public field, run `cargo doc --no-deps --open`. Otherwise, start with
+the [data model](json.md) or your [format](formats/README.md).

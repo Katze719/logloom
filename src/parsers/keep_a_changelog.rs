@@ -1,18 +1,13 @@
-use std::ops::Range;
+use std::{collections::HashSet, ops::Range};
 
-use pulldown_cmark::{Event, HeadingLevel, Options, Parser, Tag, TagEnd};
+use pulldown_cmark::HeadingLevel;
+
+use super::markdown::{self, Block, Heading};
 
 use crate::{
-    Category, Changelog, Entry, EntryKind, ErrorKind, LinkDefinition, Metadata, ParseError,
-    Release, Section, Span,
+    Category, Changelog, Entry, EntryKind, ErrorKind, LinkDefinition, MAX_INPUT_BYTES, Metadata,
+    ParseError, Release, Section, Span,
 };
-
-struct Heading {
-    level: HeadingLevel,
-    text: String,
-    link: Option<String>,
-    range: Range<usize>,
-}
 
 struct Document<'a> {
     input: &'a str,
@@ -21,6 +16,9 @@ struct Document<'a> {
     releases: Vec<Release>,
     title_range: Option<Range<usize>>,
     first_release: Option<usize>,
+    component: Option<String>,
+    needs_component_section: bool,
+    component_name_bytes: usize,
 }
 
 impl<'a> Document<'a> {
@@ -41,6 +39,9 @@ impl<'a> Document<'a> {
             releases: Vec::new(),
             title_range: None,
             first_release: None,
+            component: None,
+            needs_component_section: false,
+            component_name_bytes: 0,
         }
     }
 
@@ -81,6 +82,8 @@ impl<'a> Document<'a> {
                 self.title_range = Some(heading.range);
             }
             HeadingLevel::H2 => {
+                self.component = None;
+                self.needs_component_section = false;
                 let (version, date, yanked) = release_label(&heading.text).ok_or_else(|| {
                     self.error(
                         ErrorKind::MalformedHeading,
@@ -92,39 +95,91 @@ impl<'a> Document<'a> {
                 self.releases.push(Release {
                     version,
                     date,
+                    date_span: None,
                     yanked,
                     heading: self.source(heading.range)?.trim().to_owned(),
                     link: heading.link,
                     sections: Vec::new(),
                     span,
+                    attributes: std::collections::BTreeMap::new(),
                 });
             }
             HeadingLevel::H3 => {
-                let raw = self.source(heading.range.clone())?.trim().to_owned();
-                let release = self.releases.last_mut().ok_or_else(|| {
-                    ParseError::new(
-                        ErrorKind::UnsupportedStructure,
-                        Some(span.line),
-                        "category heading appears before any release",
-                    )
-                })?;
-                if heading.text.trim().is_empty() {
-                    return Err(ParseError::new(
-                        ErrorKind::MalformedHeading,
-                        Some(span.line),
-                        "category name is empty",
-                    ));
-                }
-                release.sections.push(Section {
-                    category: Some(Category::from_name(heading.text.trim())),
-                    heading: Some(raw),
-                    entries: Vec::new(),
-                    span,
-                });
+                self.component = None;
+                self.category_heading(&heading)?;
             }
             _ => {}
         }
         Ok(())
+    }
+
+    fn component_heading(&mut self, heading: &Heading) -> Result<(), ParseError> {
+        if self.releases.is_empty() {
+            return Err(self.error(
+                ErrorKind::UnsupportedStructure,
+                &heading.range,
+                "component heading appears before any release",
+            ));
+        }
+        let name = heading.text.trim();
+        if name.is_empty() {
+            return Err(self.error(
+                ErrorKind::MalformedHeading,
+                &heading.range,
+                "component name is empty",
+            ));
+        }
+        self.component = Some(name.to_owned());
+        self.needs_component_section = true;
+        Ok(())
+    }
+
+    fn category_heading(&mut self, heading: &Heading) -> Result<(), ParseError> {
+        let span = self.span(&heading.range);
+        if heading.text.trim().is_empty() {
+            return Err(self.error(
+                ErrorKind::MalformedHeading,
+                &heading.range,
+                "category name is empty",
+            ));
+        }
+        let raw = self.source(heading.range.clone())?.trim().to_owned();
+        let component = self.section_component(span.line)?;
+        let release = self.releases.last_mut().ok_or_else(|| {
+            ParseError::new(
+                ErrorKind::UnsupportedStructure,
+                Some(span.line),
+                "category heading appears before any release",
+            )
+        })?;
+        release.sections.push(Section {
+            component,
+            category: Some(Category::from_name(heading.text.trim())),
+            heading: Some(raw),
+            entries: Vec::new(),
+            span,
+        });
+        self.needs_component_section = false;
+        Ok(())
+    }
+
+    fn section_component(&mut self, line: usize) -> Result<Option<String>, ParseError> {
+        let Some(name) = &self.component else {
+            return Ok(None);
+        };
+        let bytes = self
+            .component_name_bytes
+            .checked_add(name.len())
+            .filter(|bytes| *bytes <= MAX_INPUT_BYTES)
+            .ok_or_else(|| {
+                ParseError::new(
+                    ErrorKind::ResourceLimit,
+                    Some(line),
+                    "expanded component names exceed the 16 MiB limit",
+                )
+            })?;
+        self.component_name_bytes = bytes;
+        Ok(Some(name.clone()))
     }
 
     fn entry(&mut self, range: Range<usize>, kind: EntryKind) -> Result<(), ParseError> {
@@ -133,14 +188,26 @@ impl<'a> Document<'a> {
         }
         let span = self.span(&range);
         let markdown = self.source(range)?.trim().to_owned();
+        let needs_section = self.needs_component_section
+            || self
+                .releases
+                .last()
+                .is_some_and(|release| release.sections.is_empty());
+        let component = if needs_section {
+            self.section_component(span.line)?
+        } else {
+            None
+        };
         if let Some(release) = self.releases.last_mut() {
-            if release.sections.is_empty() {
+            if needs_section {
                 release.sections.push(Section {
+                    component,
                     category: None,
                     heading: None,
                     entries: Vec::new(),
                     span,
                 });
+                self.needs_component_section = false;
             }
             if let Some(section) = release.sections.last_mut() {
                 section.entries.push(Entry {
@@ -170,6 +237,7 @@ impl<'a> Document<'a> {
             self.source(0..end)?.trim().to_owned()
         };
         Ok(Changelog {
+            format: crate::Format::KeepAChangelog,
             metadata: self.metadata,
             releases: self.releases,
             links,
@@ -180,91 +248,60 @@ impl<'a> Document<'a> {
 
 pub fn parse(input: &str) -> Result<Changelog, ParseError> {
     let mut document = Document::new(input);
-    let options =
-        Options::ENABLE_TABLES | Options::ENABLE_STRIKETHROUGH | Options::ENABLE_TASKLISTS;
-    let parser = Parser::new_ext(input, options);
-    let mut links: Vec<_> = parser
-        .reference_definitions()
-        .iter()
-        .map(|(label, definition)| LinkDefinition {
-            label: label.to_owned(),
-            destination: definition.dest.to_string(),
-            title: definition.title.as_ref().map(ToString::to_string),
-            span: document.span(&definition.span),
-        })
-        .collect();
-    links.sort_by_key(|link| link.span.start);
-    let mut stack = Vec::new();
-    let mut heading: Option<Heading> = None;
-    for (event, range) in parser.into_offset_iter() {
-        match event {
-            Event::Start(tag) => {
-                if stack.len() >= 128 {
-                    return Err(document.error(
-                        ErrorKind::ResourceLimit,
-                        &range,
-                        "Markdown nesting exceeds 128 containers",
-                    ));
-                }
-                start_block(&mut document, &tag, &stack, &range, &mut heading)?;
-                if let (Some(heading), Tag::Link { dest_url, .. }) = (&mut heading, &tag) {
-                    heading.link.get_or_insert_with(|| dest_url.to_string());
-                }
-                stack.push(tag.to_end());
+    let markdown = markdown::scan(input)?;
+    let components = component_headings(&markdown.blocks);
+    for block in markdown.blocks {
+        match block {
+            Block::Heading(heading) if components.contains(&heading.range.start) => {
+                document.component_heading(&heading)?;
             }
-            Event::End(tag) => {
-                stack.pop();
-                if stack.is_empty()
-                    && matches!(tag, TagEnd::Heading(_))
-                    && let Some(heading) = heading.take()
-                {
-                    document.heading(heading)?;
-                }
+            Block::Heading(heading)
+                if heading.level == HeadingLevel::H4 && document.component.is_some() =>
+            {
+                document.category_heading(&heading)?;
             }
-            Event::Text(text) | Event::Code(text) => {
-                if let Some(heading) = &mut heading {
-                    heading.text.push_str(&text);
-                }
+            Block::Heading(heading)
+                if matches!(
+                    heading.level,
+                    HeadingLevel::H1 | HeadingLevel::H2 | HeadingLevel::H3
+                ) =>
+            {
+                document.heading(heading)?;
             }
-            Event::SoftBreak | Event::HardBreak => {
-                if let Some(heading) = &mut heading {
-                    heading.text.push(' ');
-                }
-            }
-            Event::Rule if stack.is_empty() => document.entry(range, EntryKind::Markdown)?,
-            _ => {}
+            Block::Heading(heading) => document.entry(heading.range, EntryKind::Markdown)?,
+            Block::Entry(range, kind) => document.entry(range, kind)?,
         }
     }
-    document.finish(links)
+    document.finish(markdown.links)
 }
 
-fn start_block(
-    document: &mut Document<'_>,
-    tag: &Tag<'_>,
-    stack: &[TagEnd],
-    range: &Range<usize>,
-    heading: &mut Option<Heading>,
-) -> Result<(), ParseError> {
-    if stack.is_empty() {
-        match tag {
-            Tag::Heading {
-                level: level @ (HeadingLevel::H1 | HeadingLevel::H2 | HeadingLevel::H3),
-                ..
-            } => {
-                *heading = Some(Heading {
-                    level: *level,
-                    text: String::new(),
-                    link: None,
-                    range: range.clone(),
-                });
+fn component_headings(blocks: &[Block]) -> HashSet<usize> {
+    let mut component = None;
+    let mut components = HashSet::new();
+    for block in blocks {
+        if let Block::Heading(heading) = block {
+            match heading.level {
+                HeadingLevel::H1 | HeadingLevel::H2 => component = None,
+                HeadingLevel::H3 => {
+                    component = if matches!(
+                        Category::from_name(heading.text.trim()),
+                        Category::Custom(_)
+                    ) {
+                        Some(heading.range.start)
+                    } else {
+                        None
+                    };
+                }
+                HeadingLevel::H4 => {
+                    if let Some(start) = component {
+                        components.insert(start);
+                    }
+                }
+                _ => {}
             }
-            Tag::List(_) => {}
-            _ => document.entry(range.clone(), EntryKind::Markdown)?,
         }
-    } else if matches!(tag, Tag::Item) && matches!(stack, [TagEnd::List(_)]) {
-        document.entry(range.clone(), EntryKind::ListItem)?;
     }
-    Ok(())
+    components
 }
 
 type ReleaseLabel = (Option<String>, Option<String>, bool);

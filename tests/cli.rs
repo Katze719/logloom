@@ -12,8 +12,12 @@ fn invoke(arguments: &[&str]) -> io::Result<Output> {
 }
 
 fn stdin(input: &str) -> io::Result<Output> {
+    stdin_with_arguments(input, &["parse", "-"])
+}
+
+fn stdin_with_arguments(input: &str, arguments: &[&str]) -> io::Result<Output> {
     let mut child = Command::new(env!("CARGO_BIN_EXE_logloom"))
-        .args(["parse", "-"])
+        .args(arguments)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -341,4 +345,183 @@ fn non_utf8_file_names_are_supported() {
     std::fs::remove_file(path).unwrap();
     assert!(output.status.success());
     assert_eq!(output.stderr, Vec::<u8>::new());
+}
+
+#[test]
+fn every_format_and_fragment_example_can_be_parsed_from_the_cli() {
+    let cases = [
+        (
+            "conventional-changelog",
+            "examples/conventional-changelog.md",
+        ),
+        ("generic-markdown", "examples/generic-markdown.md"),
+        ("github-release-notes", "examples/github-release-notes.md"),
+        ("github-release-notes", "examples/github-release-notes.json"),
+        ("changesets", "examples/changesets.md"),
+        ("changesets", "examples/changesets-fragment.md"),
+        ("towncrier", "examples/towncrier.rst"),
+        ("towncrier", "examples/towncrier.md"),
+        ("towncrier", "examples/towncrier/123.bugfix.rst"),
+        ("debian-changelog", "examples/debian.changelog"),
+        ("gnu-news", "examples/gnu-news.txt"),
+        ("gnu-changelog", "examples/gnu-ChangeLog"),
+    ];
+    for (format, file) in cases {
+        let output = invoke(&["parse", file, "--format", format, "--color", "never"]).unwrap();
+        assert!(
+            output.status.success(),
+            "{file}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(output.stderr, Vec::<u8>::new());
+        let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(
+            json.get("format").and_then(serde_json::Value::as_str),
+            Some(format)
+        );
+    }
+}
+
+#[test]
+fn new_formats_use_their_own_error_help_and_never_emit_partial_json() {
+    let cases = [
+        (
+            "conventional-changelog",
+            "# Changelog\n",
+            "Conventional Changelog",
+        ),
+        ("generic-markdown", "## [broken\n", "Generic Markdown"),
+        ("github-release-notes", "{", "GitHub Release Notes"),
+        (
+            "changesets",
+            "---\npkg: invalid\n---\nSummary",
+            "Changesets",
+        ),
+        (
+            "debian-changelog",
+            "pkg (1.0) unstable; urgency=medium\n",
+            "Debian Changelog",
+        ),
+        ("gnu-news", "No release headers.", "GNU NEWS"),
+        ("gnu-changelog", "No date headers.", "GNU ChangeLog"),
+    ];
+    for (format, input, expected_help) in cases {
+        let output = stdin_with_arguments(
+            input,
+            &["parse", "-", "--format", format, "--color", "never"],
+        )
+        .unwrap();
+        assert_eq!(output.status.code(), Some(1));
+        assert_eq!(output.stdout, Vec::<u8>::new());
+        let diagnostic = String::from_utf8(output.stderr).unwrap();
+        assert!(diagnostic.contains(expected_help), "{format}: {diagnostic}");
+        assert!(!diagnostic.contains("Keep a Changelog"));
+        assert!(!diagnostic.contains('\u{1b}'));
+    }
+}
+
+#[test]
+fn towncrier_stdin_uses_explicit_fragment_names_and_allows_empty_misc() {
+    let output = stdin_with_arguments(
+        "Fix a bug.\n",
+        &[
+            "parse",
+            "-",
+            "--format",
+            "towncrier",
+            "--fragment-name",
+            "123.bugfix.rst",
+        ],
+    )
+    .unwrap();
+    assert!(output.status.success());
+    let changelog: Changelog = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(
+        changelog.releases[0]
+            .attributes
+            .get("issue")
+            .map(String::as_str),
+        Some("123")
+    );
+    let misc = stdin_with_arguments(
+        "",
+        &[
+            "parse",
+            "-",
+            "--format",
+            "towncrier",
+            "--fragment-name",
+            "123.misc",
+        ],
+    )
+    .unwrap();
+    assert!(misc.status.success());
+    let invalid = stdin_with_arguments(
+        "Fix a bug.\n",
+        &[
+            "parse",
+            "-",
+            "--format",
+            "towncrier",
+            "--fragment-name",
+            "invalid",
+        ],
+    )
+    .unwrap();
+    assert_eq!(invalid.status.code(), Some(1));
+    assert_eq!(invalid.stdout, Vec::<u8>::new());
+    assert!(
+        String::from_utf8(invalid.stderr)
+            .unwrap()
+            .contains("Towncrier")
+    );
+}
+
+#[test]
+fn new_format_validation_errors_also_suppress_json() {
+    for (format, input) in [
+        ("conventional-changelog", "## 1.0 (2025-02-29)\n"),
+        ("changesets", "# pkg\n## 1.0\n## 1.0\n"),
+        (
+            "github-release-notes",
+            r#"{"tag_name":"v1","published_at":"2025-02-29T12:00:00Z"}"#,
+        ),
+        (
+            "gnu-news",
+            "* Noteworthy changes in release 1.0 (2025-02-29)\n",
+        ),
+        (
+            "gnu-changelog",
+            "2025-02-29  Author <author@example.com>\n\t* file: change\n",
+        ),
+    ] {
+        let output = stdin_with_arguments(
+            input,
+            &["parse", "-", "--format", format, "--color", "always"],
+        )
+        .unwrap();
+        assert_eq!(output.status.code(), Some(1));
+        assert_eq!(output.stdout, Vec::<u8>::new());
+        assert!(output.stderr.contains(&0x1b));
+    }
+}
+
+#[test]
+fn extended_keep_a_changelog_example_emits_component_categories_without_warnings() {
+    let output = invoke(&["parse", "examples/extended-keep-a-changelog.md"]).unwrap();
+    assert!(output.status.success());
+    assert_eq!(output.stderr, Vec::<u8>::new());
+    let changelog: Changelog = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(
+        changelog.releases[3].sections[0].component.as_deref(),
+        Some("Firmware components")
+    );
+    assert_eq!(
+        changelog.releases[3].sections[0].category,
+        Some(logloom::Category::Added)
+    );
+    assert_eq!(
+        changelog.releases[3].sections[1].category,
+        Some(logloom::Category::Changed)
+    );
 }

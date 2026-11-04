@@ -5,6 +5,7 @@ use annotate_snippets::{AnnotationKind, Group, Level, Origin, Renderer, Snippet}
 use clap::ValueEnum;
 use logloom::{Diagnostic, ErrorKind, Format, ParseError, Severity};
 
+mod formats;
 mod keep_a_changelog;
 
 #[derive(Debug, Clone, Copy, Default, ValueEnum)]
@@ -101,11 +102,11 @@ impl Reporter {
         let (id, help) = match error.kind {
             ErrorKind::ResourceLimit => (
                 "resource-limit",
-                "Keep input at or below 16 MiB and Markdown nesting at or below 128 containers.",
+                "Keep input and expanded repeated metadata at or below 16 MiB, and Markdown nesting at or below 128 containers.",
             ),
             _ => match source.format {
                 Format::KeepAChangelog => keep_a_changelog::parse_details(error.kind),
-                _ => ("parse", "Check the syntax of the selected input format."),
+                format => formats::parse_details(format, error.kind),
             },
         };
         self.render(
@@ -120,10 +121,7 @@ impl Reporter {
     pub fn validation(&self, diagnostic: &Diagnostic, source: &SourceText<'_>) -> String {
         let (id, help) = match source.format {
             Format::KeepAChangelog => keep_a_changelog::validation_details(diagnostic.code),
-            _ => (
-                "validation",
-                "Check the conventions of the selected input format.",
-            ),
+            format => formats::validation_details(format, diagnostic.code),
         };
         let level = match diagnostic.severity {
             Severity::Error => Level::ERROR,

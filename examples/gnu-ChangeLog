@@ -1,0 +1,14 @@
+2026-11-04  Alice Example  <alice@example.com>
+
+	Support streaming exports.
+	* src/export.c (export_records): Preserve input order.
+	Handle empty streams without adding records.
+	* doc/lantern.texi: Document the new option.
+
+2026-11-04  Bob Example  <bob@example.com>
+
+	* src/reader.c (read_file): Preserve Unicode paths.
+
+2026-10-01  Alice Example  <alice@example.com>
+
+	* src/main.c: Initial public release.

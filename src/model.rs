@@ -1,8 +1,14 @@
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 /// An owned, serializable changelog independent of its source format.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Changelog {
+    /// Source format, retained so validation uses the correct conventions.
+    /// Defaults to Keep a Changelog when reading older serialized models.
+    #[serde(default)]
+    pub format: crate::Format,
     /// Title and introductory Markdown.
     pub metadata: Metadata,
     /// All releases, including pending releases, in original document order.
@@ -18,20 +24,24 @@ pub struct Changelog {
 pub struct Metadata {
     /// Plain text of the optional level-one title.
     pub title: Option<String>,
-    /// Markdown before the first release, excluding the title heading itself.
+    /// Introductory source text before the first release, excluding a Markdown title.
     pub description: String,
 }
 
 /// A release identifier is opaque: neither `SemVer` nor chronological sorting is imposed.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Release {
-    /// Opaque identifier; `None` represents pending (unreleased) changes.
+    /// Opaque identifier; `None` represents pending or unversioned content.
     pub version: Option<String>,
-    /// Original date text. Use validation to check calendar correctness.
+    /// Optional calendar date. Use validation to check calendar correctness.
+    /// Timestamp-based formats retain the original timestamp in attributes.
     pub date: Option<String>,
+    /// Source location of a date stored outside the release heading, if known.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub date_span: Option<Span>,
     /// Whether the source explicitly marks this release as withdrawn.
     pub yanked: bool,
-    /// Exact Markdown heading, excluding surrounding whitespace.
+    /// Original heading text, or decoded release title from a structured export.
     pub heading: String,
     /// Resolved link on the release heading, if present.
     pub link: Option<String>,
@@ -39,12 +49,20 @@ pub struct Release {
     pub sections: Vec<Section>,
     /// Source location of the release heading.
     pub span: Span,
+    /// Format-specific attributes such as package, bump, author, or timestamp.
+    /// Empty for ordinary Keep a Changelog releases.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub attributes: BTreeMap<String, String>,
 }
 
 /// A group of ordered entries.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Section {
-    /// `None` for content before the first category in a release.
+    /// Optional component name shared by this category's entries.
+    /// Absent for release-wide categories and older serialized models.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub component: Option<String>,
+    /// `None` for uncategorized content at release or component level.
     pub category: Option<Category>,
     /// Exact heading Markdown; absent for an unnamed group.
     pub heading: Option<String>,
@@ -89,13 +107,13 @@ impl Category {
     }
 }
 
-/// A top-level list item or other Markdown block within a section.
+/// A top-level list item, Markdown block, or raw text block within a section.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Entry {
-    /// Exact source Markdown, trimmed only at the block boundaries.
+    /// Original content, trimmed only at block boundaries; may be Markdown or text.
     /// List markers, nested lists, code, and reference labels are retained.
     pub markdown: String,
-    /// Whether this entry originated as a list item or another Markdown block.
+    /// Whether this entry originated as a list item, Markdown block, or raw text.
     pub kind: EntryKind,
     /// Original source location.
     pub span: Span,
@@ -110,6 +128,8 @@ pub enum EntryKind {
     ListItem,
     /// Another Markdown block (paragraph, code, quote, table, HTML, or subheading).
     Markdown,
+    /// Plain text or reStructuredText retained without Markdown interpretation.
+    Text,
 }
 
 /// One effective `CommonMark` link definition; duplicate definitions remain in `source`.

@@ -1,13 +1,27 @@
 # logloom
 
-Parse existing changelogs into structured JSON, from the command line or Rust.
+Changelogs in, JSON out. A CLI and Rust library for Markdown histories,
+release notes, and news fragments.
 
-Currently supports **Keep a Changelog 1.1.0**, including common 1.0.0 layouts.
-See the [example changelog](examples/keep-a-changelog.md).
+## Formats
+
+- [Keep a Changelog](examples/keep-a-changelog.md), including [component categories](examples/extended-keep-a-changelog.md)
+- [Conventional Changelog](examples/conventional-changelog.md)
+- [Generic Markdown](examples/generic-markdown.md)
+- [GitHub Release Notes](examples/github-release-notes.json)
+- [Changesets](examples/changesets.md)
+- [Towncrier](examples/towncrier.rst)
+- [Debian Changelog](examples/debian.changelog)
+- [GNU NEWS](examples/gnu-news.txt)
+- [GNU ChangeLog](examples/gnu-ChangeLog)
+
+[Syntax and limits](docs/formats/README.md) - [All examples](examples/README.md)
+
+Yes, there are this many ways to write down "fixed a bug".
 
 ## Install
 
-From a checkout, with Rust 1.99.1:
+Grab a checkout and Rust 1.99.1, then:
 
 ```sh
 cargo install --path . --locked
@@ -17,19 +31,20 @@ cargo install --path . --locked
 
 ```sh
 logloom parse CHANGELOG.md
+logloom parse CHANGELOG.md --format conventional-changelog
 cat CHANGELOG.md | logloom parse -
 logloom --help
 ```
 
-JSON goes to stdout; diagnostics go to stderr. Errors produce no JSON.
+JSON goes to stdout, complaints go to stderr. If there's an error, stdout stays empty.
 
-Try the included example without installing:
+Try it straight from the checkout:
 
 ```sh
 cargo run -- parse examples/keep-a-changelog.md
 ```
 
-[Documentation](docs/README.md): CLI, Rust API, JSON, supported syntax, and development.
+More examples, the Rust API, and the small print live in the [docs](docs/README.md).
 
 ## License
 

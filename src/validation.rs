@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Category, Changelog};
+use crate::{Category, Changelog, Format};
 
 /// Importance of a convention diagnostic. Parsing itself has already succeeded.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -52,15 +52,19 @@ pub struct Diagnostic {
     pub message: String,
 }
 
-/// Check conventions without mutating, sorting, or rejecting the parsed content.
+/// Check the source format's conventions without mutating or sorting content.
 ///
 /// Empty releases and categories are accepted. Version identifiers are opaque.
 /// Dates use four-digit years 0001–9999 and the Gregorian calendar. Unknown
-/// categories, missing dates, and unusual ordering produce warnings; invalid
+/// categories, missing dates, and unusual ordering produce Keep a Changelog warnings; invalid
 /// dates and duplicate identifiers produce errors. This checks the unified
 /// model, rather than attempting to validate every Markdown convention.
 #[must_use]
 pub fn validate(changelog: &Changelog) -> Vec<Diagnostic> {
+    validate_for_format(changelog, changelog.format)
+}
+
+fn validate_keep_a_changelog(changelog: &Changelog) -> Vec<Diagnostic> {
     let mut diagnostics = Vec::new();
     let mut report = |severity, code, line, message: &str| {
         diagnostics.push(Diagnostic {
@@ -158,7 +162,48 @@ pub fn validate(changelog: &Changelog) -> Vec<Diagnostic> {
     diagnostics
 }
 
-fn valid_date(date: &str) -> bool {
+/// Validate with the conventions of the selected input format.
+///
+/// [`validate`] uses the stored source format; this function explicitly overrides it.
+/// Keep a Changelog retains its original checks. Other formats check
+/// real ISO calendar dates and duplicate version identifiers within each package,
+/// without warning about missing dates, titles, or format-specific categories.
+/// Unversioned notes and date/author records do not invent duplicate versions.
+#[must_use]
+pub fn validate_for_format(changelog: &Changelog, format: Format) -> Vec<Diagnostic> {
+    if format == Format::KeepAChangelog {
+        return validate_keep_a_changelog(changelog);
+    }
+    let mut diagnostics = Vec::new();
+    let mut versions = HashSet::new();
+    for release in &changelog.releases {
+        if let Some(version) = &release.version
+            && !versions.insert((release.attributes.get("package"), version))
+        {
+            diagnostics.push(Diagnostic {
+                severity: Severity::Error,
+                code: DiagnosticCode::DuplicateRelease,
+                line: Some(release.span.line),
+                message: "duplicate version identifier within the same package".to_owned(),
+            });
+        }
+        if release
+            .date
+            .as_deref()
+            .is_some_and(|date| !valid_date(date))
+        {
+            diagnostics.push(Diagnostic {
+                severity: Severity::Error,
+                code: DiagnosticCode::InvalidDate,
+                line: Some(release.date_span.unwrap_or(release.span).line),
+                message: "expected a real calendar date in YYYY-MM-DD format".to_owned(),
+            });
+        }
+    }
+    diagnostics
+}
+
+pub fn valid_date(date: &str) -> bool {
     if date.len() != 10
         || !date
             .bytes()

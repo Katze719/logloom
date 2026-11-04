@@ -1,12 +1,14 @@
-# Documentation
+# Docs
 
-| I want to… | Start here |
+Pick the bit you need. Reading these in order is entirely optional.
+
+| Here for… | Go here |
 | --- | --- |
-| Parse a file or stdin | [CLI examples](cli.md) |
-| Understand an error or control colors | [Diagnostics](cli.md#diagnostics) |
-| Parse a string in Rust | [Library usage](library.md) |
-| Work with the JSON output | [JSON and data model](json.md) |
-| Check supported Markdown and limitations | [Keep a Changelog](formats/keep-a-changelog.md) |
-| Build, test, or add a format | [Development](development.md) |
+| A command to copy | [CLI](cli.md) |
+| Something complaining at you | [Diagnostics](cli.md#diagnostics) |
+| The Rust bits | [Library](library.md) |
+| Making jq do the work | [JSON](json.md) |
+| Your particular flavour of changelog | [Formats](formats/README.md) |
+| Poking the code | [Development](development.md) |
 
-For a complete input document, see [examples/keep-a-changelog.md](../examples/keep-a-changelog.md).
+The [examples](../examples/README.md) are real files you can feed to the CLI.

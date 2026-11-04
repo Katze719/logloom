@@ -5,7 +5,9 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use clap::{CommandFactory, Parser, Subcommand, ValueEnum};
-use logloom::{Diagnostic, Format, MAX_INPUT_BYTES, Severity, parse, validate};
+use logloom::{
+    Diagnostic, Format, MAX_INPUT_BYTES, Severity, parse, parse_named, validate_for_format,
+};
 
 use crate::diagnostics::{ColorMode, Reporter, SourceText};
 
@@ -28,6 +30,9 @@ enum Command {
         /// Input changelog format.
         #[arg(long, value_enum, default_value = "keep-a-changelog")]
         format: InputFormat,
+        /// Towncrier fragment filename for stdin, e.g. 123.bugfix.rst.
+        #[arg(long)]
+        fragment_name: Option<String>,
         /// Output format. JSON is pretty-printed and ends with a newline.
         #[arg(long, value_enum, default_value = "json")]
         output: OutputFormat,
@@ -37,6 +42,16 @@ enum Command {
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum InputFormat {
     KeepAChangelog,
+    ConventionalChangelog,
+    GenericMarkdown,
+    #[value(name = "github-release-notes")]
+    GitHubReleaseNotes,
+    Changesets,
+    Towncrier,
+    DebianChangelog,
+    GnuNews,
+    #[value(name = "gnu-changelog")]
+    GnuChangeLog,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -84,20 +99,60 @@ pub fn run() -> Result<ExitCode, CliError> {
     let Command::Parse {
         file,
         format,
+        fragment_name,
         output: OutputFormat::Json,
     } = cli.command;
-    parse_file(&file, format, &Reporter::new(cli.color))
+    parse_file(
+        &file,
+        format,
+        fragment_name.as_deref(),
+        &Reporter::new(cli.color),
+    )
 }
 
-fn parse_file(file: &Path, format: InputFormat, reporter: &Reporter) -> Result<ExitCode, CliError> {
-    let input = read_input(file, reporter)?;
+fn parse_file(
+    file: &Path,
+    format: InputFormat,
+    fragment_name: Option<&str>,
+    reporter: &Reporter,
+) -> Result<ExitCode, CliError> {
     let format = match format {
         InputFormat::KeepAChangelog => Format::KeepAChangelog,
+        InputFormat::ConventionalChangelog => Format::ConventionalChangelog,
+        InputFormat::GenericMarkdown => Format::GenericMarkdown,
+        InputFormat::GitHubReleaseNotes => Format::GitHubReleaseNotes,
+        InputFormat::Changesets => Format::Changesets,
+        InputFormat::Towncrier => Format::Towncrier,
+        InputFormat::DebianChangelog => Format::DebianChangelog,
+        InputFormat::GnuNews => Format::GnuNews,
+        InputFormat::GnuChangeLog => Format::GnuChangeLog,
     };
+    if fragment_name.is_some() && format != Format::Towncrier {
+        return Err(CliError::new(
+            2,
+            reporter.error(
+                "fragment-name",
+                "--fragment-name applies only to Towncrier",
+                "Use --format towncrier when providing a news-fragment filename.",
+            ),
+        ));
+    }
+    let input = read_input(file, reporter)?;
     let source = SourceText::new(file, &input, format);
-    let changelog = parse(&input, format)
-        .map_err(|error| CliError::new(1, reporter.parse_error(&error, &source)))?;
-    let diagnostics = validate(&changelog);
+    let name = fragment_name.or_else(|| {
+        if file == Path::new("-") {
+            None
+        } else {
+            file.file_name().and_then(|name| name.to_str())
+        }
+    });
+    let parsed = name.map_or_else(
+        || parse(&input, format),
+        |name| parse_named(&input, format, name),
+    );
+    let changelog =
+        parsed.map_err(|error| CliError::new(1, reporter.parse_error(&error, &source)))?;
+    let diagnostics = validate_for_format(&changelog, format);
     write_diagnostics(&diagnostics, &source, reporter)?;
     if diagnostics
         .iter()
