@@ -91,7 +91,6 @@ fn help_version_and_subcommand_help_are_available() {
 fn usage_errors_exit_two_and_use_stderr() {
     for arguments in [
         vec![],
-        vec!["parse"],
         vec!["parse", "-", "--format", "keep-a-changelog"],
         vec!["parse", "-", "--output", "json"],
         vec!["parse", "-", "--input-format", "unknown"],

@@ -4,7 +4,7 @@ use super::{InputFormat, render::OutputFormat};
 
 pub fn parse() -> String {
     format!(
-        "Input formats:\n{}\n\nOutput formats:\n{}\n\nExamples:\n  logloom parse CHANGELOG.md --latest --output-format text\n  logloom parse CHANGELOG.md --release 1.2.0 -o release.json\n  logloom parse - --input-format keep-a-changelog",
+        "Input formats:\n{}\n\nOutput formats:\n{}\n\nExamples:\n  logloom parse --latest --output-format text\n  logloom parse --release 1.2.0 -o release.json\n  logloom parse - --input-format keep-a-changelog",
         formats::<InputFormat>(),
         formats::<OutputFormat>(),
     )
@@ -12,7 +12,7 @@ pub fn parse() -> String {
 
 pub fn validate() -> String {
     format!(
-        "Input formats:\n{}\n\nExamples:\n  logloom validate CHANGELOG.md\n  logloom validate CHANGELOG.md --input-format keep-a-changelog",
+        "Input formats:\n{}\n\nExamples:\n  logloom validate\n  logloom validate other.md --input-format keep-a-changelog",
         formats::<InputFormat>()
     )
 }

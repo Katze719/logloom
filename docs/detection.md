@@ -12,7 +12,8 @@ changesets
 
 `parse` and `validate` default to `--input-format auto`. `detect` uses the same
 detector and prints one format name followed by a newline. All three accept `-`
-for stdin. Inspection is offline and reads at most 16 MiB.
+for stdin and default to `CHANGELOG.md` in the current directory when no file
+is given. Inspection is offline and reads at most 16 MiB.
 
 ## When auto refuses
 

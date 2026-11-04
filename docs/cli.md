@@ -3,9 +3,13 @@
 ## Parse a file
 
 ```sh
+logloom parse
 logloom parse CHANGELOG.md
 logloom parse CHANGELOG.md --input-format keep-a-changelog --output-format json
 ```
+
+Without a file argument, `parse`, `validate`, and `detect` read `CHANGELOG.md`
+from the current directory. Pass another path or `-` for stdin.
 
 Both give you pretty-printed JSON and a final newline. Input defaults to
 `auto`, which refuses ambiguous formats. `--output-format json` is there if you enjoy extra keystrokes;

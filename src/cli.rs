@@ -25,7 +25,7 @@ use selection::Selection;
     version,
     propagate_version = true,
     about = "Parse and export existing changelogs",
-    after_help = "Examples:\n  logloom parse CHANGELOG.md --latest --output-format text\n  logloom detect CHANGELOG.md\n  logloom validate CHANGELOG.md"
+    after_help = "Examples:\n  logloom parse --latest --output-format text\n  logloom detect\n  logloom validate"
 )]
 struct Cli {
     /// Diagnostic colors: auto, always, never.
@@ -56,6 +56,7 @@ enum Command {
 #[command(next_help_heading = "Input")]
 struct InputArgs {
     /// UTF-8 changelog file, or - to read stdin (maximum 16 MiB).
+    #[arg(default_value = "CHANGELOG.md")]
     file: PathBuf,
     /// Input format; auto requires a clear match.
     #[arg(
@@ -74,6 +75,7 @@ struct InputArgs {
 #[derive(Debug, Args)]
 struct DetectArgs {
     /// UTF-8 changelog file, or - to read stdin (maximum 16 MiB).
+    #[arg(default_value = "CHANGELOG.md")]
     file: PathBuf,
     /// Towncrier filename hint, e.g. 123.bugfix.rst.
     #[arg(long, value_name = "NAME")]

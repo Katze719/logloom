@@ -30,9 +30,9 @@ cargo install --path . --locked
 ## Usage
 
 ```sh
-logloom parse CHANGELOG.md
-logloom detect CHANGELOG.md
-logloom validate CHANGELOG.md
+logloom parse
+logloom detect
+logloom validate
 logloom parse CHANGELOG.md --input-format conventional-changelog
 logloom parse CHANGELOG.md --latest --category Fixed -o release.json
 logloom parse CHANGELOG.md --latest --output-format markdown -o release.md
@@ -40,6 +40,7 @@ cat CHANGELOG.md | logloom parse -
 logloom --help
 ```
 
+No file argument? It'll read `CHANGELOG.md` in the current directory.
 The result goes to stdout, complaints go to stderr. JSON is the default.
 If there's an error, stdout stays empty.
 

@@ -66,7 +66,7 @@ fn help_groups_options_and_keeps_all_formats_and_examples_discoverable() {
     ] {
         assert!(help.contains(name), "{name}");
     }
-    assert!(help.contains("logloom parse CHANGELOG.md --latest --output-format text"));
+    assert!(help.contains("logloom parse --latest --output-format text"));
     let output = invoke(&["parse", "-", "--input-format", "md"]).unwrap();
     assert_eq!(output.status.code(), Some(2));
     assert!(

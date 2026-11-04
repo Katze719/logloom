@@ -185,13 +185,95 @@ fn new_commands_share_stdin_fragment_hints_and_io_exit_codes() {
         assert_eq!(output.stdout, Vec::<u8>::new());
     }
     for args in [
-        vec!["detect"],
-        vec!["validate"],
         vec!["validate", "-", "--category", "Added"],
         vec!["validate", "-", "--output-format", "json"],
     ] {
         let output = invoke(&args).unwrap();
         assert_eq!(output.status.code(), Some(2));
         assert_eq!(output.stdout, Vec::<u8>::new());
+    }
+}
+
+#[test]
+fn omitted_file_reads_changelog_in_the_current_directory_and_explicit_paths_override_it() {
+    let directory = tempfile::tempdir().unwrap();
+    let original = include_str!("fixtures/only-unreleased.md");
+    fs::write(directory.path().join("CHANGELOG.md"), original).unwrap();
+    fs::write(
+        directory.path().join("other.md"),
+        include_str!("../examples/conventional-changelog.md"),
+    )
+    .unwrap();
+    fs::write(
+        directory.path().join("invalid.md"),
+        include_str!("fixtures/invalid-dates.md"),
+    )
+    .unwrap();
+    for command in ["parse", "detect", "validate"] {
+        let output = Command::new(env!("CARGO_BIN_EXE_logloom"))
+            .current_dir(directory.path())
+            .arg(command)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{command}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(output.stderr, Vec::<u8>::new());
+        match command {
+            "parse" => assert_eq!(
+                serde_json::from_slice::<Changelog>(&output.stdout)
+                    .unwrap()
+                    .source,
+                original
+            ),
+            "detect" => assert_eq!(output.stdout, b"keep-a-changelog\n"),
+            _ => assert_eq!(output.stdout, Vec::<u8>::new()),
+        }
+    }
+    let output = Command::new(env!("CARGO_BIN_EXE_logloom"))
+        .current_dir(directory.path())
+        .args(["parse", "other.md"])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    assert_eq!(
+        serde_json::from_slice::<Changelog>(&output.stdout)
+            .unwrap()
+            .format
+            .as_str(),
+        "conventional-changelog"
+    );
+    let output = Command::new(env!("CARGO_BIN_EXE_logloom"))
+        .current_dir(directory.path())
+        .args(["detect", "other.md"])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    assert_eq!(output.stdout, b"conventional-changelog\n");
+    let output = Command::new(env!("CARGO_BIN_EXE_logloom"))
+        .current_dir(directory.path())
+        .args(["validate", "invalid.md"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(output.stdout, Vec::<u8>::new());
+}
+
+#[test]
+fn missing_default_file_reports_the_default_path_as_an_io_error() {
+    let directory = tempfile::tempdir().unwrap();
+    for command in ["parse", "detect", "validate"] {
+        let output = Command::new(env!("CARGO_BIN_EXE_logloom"))
+            .current_dir(directory.path())
+            .arg(command)
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(3));
+        assert_eq!(output.stdout, Vec::<u8>::new());
+        let error = String::from_utf8(output.stderr).unwrap();
+        assert!(error.contains("cannot read CHANGELOG.md"));
+        assert!(error.contains("Check the file path"));
     }
 }
