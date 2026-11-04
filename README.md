@@ -51,6 +51,7 @@ cargo run -- parse examples/keep-a-changelog.md
 ```
 
 More examples, the Rust API, and the small print live in the [docs](docs/README.md).
+Project changes live in the [changelog](CHANGELOG.md).
 
 ## License
 
