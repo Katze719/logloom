@@ -1,0 +1,31 @@
+name: Rust
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
+          components: rustfmt, clippy
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --locked --all-targets --all-features -- -D warnings
+      - run: cargo build --locked --all-features
+      - run: cargo test --locked --all-features
+      - run: cargo test --locked --doc
+      - name: Run nextest when available
+        shell: bash
+        run: |
+          if command -v cargo-nextest >/dev/null 2>&1; then
+            cargo nextest run --locked --all-features
+          else
+            echo "cargo-nextest is not installed; cargo test ran above."
+          fi
