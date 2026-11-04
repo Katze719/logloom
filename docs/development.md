@@ -11,6 +11,7 @@ cargo clippy --all-targets --all-features -- -D warnings
 cargo build --all-features
 cargo test --all-features
 cargo test --doc
+cargo run -- validate --strict
 cargo doc --no-deps
 ```
 

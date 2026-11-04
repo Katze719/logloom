@@ -54,8 +54,19 @@ logloom validate CHANGELOG.md --input-format keep-a-changelog
 ```
 
 `detect` prints one format name. `validate` exports nothing: findings go to
-stderr, errors exit 1, and warnings alone exit 0. Both accept `-` for stdin and
+stderr, errors exit 1, and warnings alone exit 0 by default. Both accept `-` for stdin and
 `--fragment-name` for Towncrier. See [detection and validation](detection.md).
+
+For CI, let warnings fail the job too:
+
+```sh
+logloom validate --strict
+logloom parse --strict --output-format markdown -o release.md
+```
+
+`--strict` applies to `parse` and `validate`. Any validation warning makes the
+command exit 1. Parsing with warnings leaves stdout empty and existing output
+files untouched. The whole input is checked before filters run.
 
 ## Read stdin or save the result
 
@@ -107,7 +118,8 @@ February 29, 2025 didn't happen. The error comes with a location and a hint for
 the selected format. When there's source text to point at, it'll underline it.
 
 Input errors leave stdout empty and output files untouched. All validation
-findings go to stderr before exit; warnings alone still let the result through.
+findings go to stderr before exit; warnings alone still let the result through
+unless `--strict` is enabled.
 Repeated warnings share one explanation and list the other affected lines.
 Errors keep their own source excerpts. A filter with no matches gets a short
 note on stderr and still exits 0.
@@ -127,8 +139,8 @@ A nonempty `NO_COLOR` or `TERM=dumb` also disables auto colors. `always` and
 
 | Code | What happened |
 | --- | --- |
-| 0 | Success, possibly with warnings; also help/version |
-| 1 | Parsing, validation, unsupported structure, or input-limit error |
+| 0 | Success, possibly with warnings unless strict; also help/version |
+| 1 | Parsing, validation, unsupported structure, input-limit error, or validation warnings with `--strict` |
 | 2 | Invalid command-line arguments |
 | 3 | File, UTF-8 decoding, diagnostic/output I/O, or serialization failure |
 

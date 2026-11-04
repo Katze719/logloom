@@ -161,6 +161,19 @@ impl Reporter {
         )
     }
 
+    pub fn strict_warnings(&self, count: usize) -> String {
+        let message = if count == 1 {
+            "1 validation warning is not allowed with --strict".to_owned()
+        } else {
+            format!("{count} validation warnings are not allowed with --strict")
+        };
+        self.error(
+            "strict-validation",
+            &message,
+            "Fix the validation warnings, or omit --strict to allow warnings.",
+        )
+    }
+
     pub fn parse_error(&self, error: &ParseError, source: &SourceText<'_>) -> String {
         let (id, help) = match error.kind {
             ErrorKind::ResourceLimit => (

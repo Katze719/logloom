@@ -54,12 +54,19 @@ printf 'Fix a bug.\n' | logloom parse - --input-format towncrier \
 
 ```sh
 logloom validate examples/keep-a-changelog.md
+logloom validate --strict
 logloom validate tests/fixtures/invalid-dates.md --color never
 ```
 
 `validate` runs full parsing and the format's convention checks. stdout stays
 empty; findings go to stderr with the same source locations, hints, and colors as
-`parse`. Errors exit 1, warnings alone exit 0. I/O failures exit 3.
+`parse`. Errors exit 1, warnings alone exit 0 by default. I/O failures exit 3.
+
+Use `--strict` with `validate` or `parse` in CI: validation warnings also exit 1.
+Warnings keep their severity and correction hints; a final error explains that
+strict mode rejected them. `parse --strict` emits no result on warnings and
+leaves existing output files untouched. Filters don't hide warnings elsewhere
+in the input. Informational notes, such as no matching releases, still exit 0.
 
 `detect` only identifies signatures. It can name a format even when a release has
 an invalid date or an incomplete heading. Use `validate` to check the document.

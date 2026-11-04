@@ -70,6 +70,9 @@ struct InputArgs {
     /// Towncrier filename hint, e.g. 123.bugfix.rst.
     #[arg(long, value_name = "NAME")]
     fragment_name: Option<String>,
+    /// Fail on validation warnings as well as errors (useful for CI).
+    #[arg(long, help_heading = "Validation")]
+    strict: bool,
 }
 
 #[derive(Debug, Args)]
@@ -162,7 +165,7 @@ pub fn run() -> Result<ExitCode, CliError> {
         Command::Parse(args) => parse_file(&args, &reporter),
         Command::Validate(args) => {
             let changelog = read_document(&args, &reporter)?;
-            check_document(&args.file, &changelog, &reporter)
+            check_document(&args.file, &changelog, args.strict, &reporter)
         }
         Command::Detect(args) => {
             let input = read_input(&args.file, &reporter)?;
@@ -250,15 +253,29 @@ fn read_document(args: &InputArgs, reporter: &Reporter) -> Result<Changelog, Cli
 fn check_document(
     path: &Path,
     changelog: &Changelog,
+    strict: bool,
     reporter: &Reporter,
 ) -> Result<ExitCode, CliError> {
     let source = SourceText::new(path, &changelog.source, changelog.format);
     let diagnostics = validate(changelog);
     write_diagnostics(&diagnostics, &source, reporter)?;
-    if diagnostics
+    let has_errors = diagnostics
         .iter()
-        .any(|diagnostic| diagnostic.severity == Severity::Error)
-    {
+        .any(|diagnostic| diagnostic.severity == Severity::Error);
+    let warnings = diagnostics
+        .iter()
+        .filter(|diagnostic| diagnostic.severity == Severity::Warning)
+        .count();
+    let rejected_warnings = strict && warnings != 0;
+    if rejected_warnings && !has_errors {
+        writeln!(
+            io::stderr().lock(),
+            "{}",
+            reporter.strict_warnings(warnings)
+        )
+        .map_err(|error| diagnostic_error(&error, reporter))?;
+    }
+    if has_errors || rejected_warnings {
         Ok(ExitCode::from(1))
     } else {
         Ok(ExitCode::SUCCESS)
@@ -267,7 +284,7 @@ fn check_document(
 
 fn parse_file(args: &ParseArgs, reporter: &Reporter) -> Result<ExitCode, CliError> {
     let mut changelog = read_document(&args.input, reporter)?;
-    let status = check_document(&args.input.file, &changelog, reporter)?;
+    let status = check_document(&args.input.file, &changelog, args.input.strict, reporter)?;
     if status != ExitCode::SUCCESS {
         return Ok(status);
     }
