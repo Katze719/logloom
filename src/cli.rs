@@ -12,6 +12,7 @@ use logloom::{
 
 use crate::diagnostics::{ColorMode, Reporter, SourceText};
 
+mod help;
 mod output;
 mod render;
 mod selection;
@@ -23,11 +24,18 @@ use selection::Selection;
 #[command(
     version,
     propagate_version = true,
-    about = "Parse and export existing changelogs"
+    about = "Parse and export existing changelogs",
+    after_help = "Examples:\n  logloom parse CHANGELOG.md --latest --output-format text\n  logloom detect CHANGELOG.md\n  logloom validate CHANGELOG.md"
 )]
 struct Cli {
-    /// Color diagnostics: auto detects stderr terminals and respects `NO_COLOR`.
-    #[arg(long, global = true, value_enum, default_value = "auto")]
+    /// Diagnostic colors: auto, always, never.
+    #[arg(
+        long,
+        global = true,
+        value_enum,
+        default_value = "auto",
+        hide_possible_values = true
+    )]
     color: ColorMode,
     #[command(subcommand)]
     command: Command,
@@ -38,20 +46,28 @@ enum Command {
     /// Parse a changelog file (or - for standard input).
     Parse(ParseArgs),
     /// Check a changelog without exporting it; diagnostics go to stderr.
+    #[command(after_help = help::validate())]
     Validate(InputArgs),
     /// Print the detected input-format name without validating or exporting.
     Detect(DetectArgs),
 }
 
 #[derive(Debug, Args)]
+#[command(next_help_heading = "Input")]
 struct InputArgs {
     /// UTF-8 changelog file, or - to read stdin (maximum 16 MiB).
     file: PathBuf,
-    /// Input format; auto refuses ambiguous or unrecognized input.
-    #[arg(long, value_enum, default_value = "auto")]
+    /// Input format; auto requires a clear match.
+    #[arg(
+        long,
+        value_enum,
+        default_value = "auto",
+        value_name = "FORMAT",
+        hide_possible_values = true
+    )]
     input_format: InputFormat,
-    /// Towncrier fragment filename for stdin, e.g. 123.bugfix.rst.
-    #[arg(long)]
+    /// Towncrier filename hint, e.g. 123.bugfix.rst.
+    #[arg(long, value_name = "NAME")]
     fragment_name: Option<String>,
 }
 
@@ -59,20 +75,28 @@ struct InputArgs {
 struct DetectArgs {
     /// UTF-8 changelog file, or - to read stdin (maximum 16 MiB).
     file: PathBuf,
-    /// Towncrier fragment filename hint for stdin, e.g. 123.bugfix.rst.
-    #[arg(long)]
+    /// Towncrier filename hint, e.g. 123.bugfix.rst.
+    #[arg(long, value_name = "NAME")]
     fragment_name: Option<String>,
 }
 
 #[derive(Debug, Args)]
+#[command(after_help = help::parse())]
 struct ParseArgs {
     #[command(flatten)]
     input: InputArgs,
     /// Output format (pretty-printed JSON by default).
-    #[arg(long, value_enum, default_value = "json")]
+    #[arg(
+        long,
+        value_enum,
+        default_value = "json",
+        value_name = "FORMAT",
+        help_heading = "Output",
+        hide_possible_values = true
+    )]
     output_format: OutputFormat,
-    /// Write to this file instead of stdout; replaces an existing file.
-    #[arg(short = 'o', long, value_name = "PATH")]
+    /// Write to a file (replace existing); '-' uses stdout.
+    #[arg(short = 'o', long, value_name = "PATH", help_heading = "Output")]
     output_file: Option<PathBuf>,
     #[command(flatten)]
     selection: Selection,
@@ -246,23 +270,33 @@ fn parse_file(args: &ParseArgs, reporter: &Reporter) -> Result<ExitCode, CliErro
         return Ok(status);
     }
     args.selection.apply(&mut changelog).map_err(|error| {
-        CliError::new(1, reporter.error(
-            "latest-release", error,
-            "Narrow matches with --package NAME or another filter. Replace --latest with --release VERSION or --first-published when dates cannot identify one release.",
-        ))
+        let source = SourceText::new(&args.input.file, &changelog.source, changelog.format);
+        CliError::new(
+            1,
+            reporter.selection_error(&error.message, error.help, error.line, &source),
+        )
     })?;
+    if args.selection.is_active() && changelog.releases.is_empty() {
+        writeln!(io::stderr().lock(), "{}", reporter.no_matches())
+            .map_err(|error| diagnostic_error(&error, reporter))?;
+    }
     // Render the whole result before touching stdout or the destination file.
     let bytes = render::render(&changelog, args.output_format).map_err(|error| {
         CliError::new(
             3,
             reporter.error(
                 "serialization",
-                &format!("cannot render changelog as {}: {error}", args.output_format.name()),
-                "Check the selected output format and its documented limits in docs/output-formats.md.",
+                &format!(
+                    "cannot render changelog as {}: {error}",
+                    args.output_format.name()
+                ),
+                "Try fewer releases or sections, or choose another --output-format.",
             ),
         )
     })?;
-    if let Some(path) = &args.output_file {
+    if let Some(path) = &args.output_file
+        && path != Path::new("-")
+    {
         output::write_file(path, &args.input.file, &bytes, reporter)?;
     } else {
         finish_write(io::stdout().lock().write_all(&bytes), reporter)?;
@@ -296,7 +330,13 @@ fn read_input(path: &Path, reporter: &Reporter) -> Result<String, CliError> {
             reporter.error(
                 "read-input",
                 &format!("cannot read {}: {error}", path.display()),
-                "Check the file path and read permissions, or use '-' to read from stdin.",
+                match error.kind() {
+                    io::ErrorKind::NotFound => {
+                        "Check the file path, or use '-' to read changelog text from stdin."
+                    }
+                    io::ErrorKind::IsADirectory => "Pass a changelog file instead of a directory.",
+                    _ => "Check the file path and read permissions, or use '-' to read from stdin.",
+                },
             ),
         )
     })?;
@@ -328,19 +368,41 @@ fn write_diagnostics(
     reporter: &Reporter,
 ) -> Result<(), CliError> {
     let mut stderr = io::stderr().lock();
+    let mut seen_warnings: Vec<&Diagnostic> = Vec::new();
     for diagnostic in diagnostics {
-        writeln!(stderr, "{}", reporter.validation(diagnostic, source)).map_err(|error| {
-            CliError::new(
-                3,
-                reporter.error(
-                    "diagnostic-io",
-                    &format!("cannot write diagnostics: {error}"),
-                    "Check that stderr is writable.",
-                ),
-            )
-        })?;
+        let rendered = if diagnostic.severity == Severity::Warning {
+            if seen_warnings.iter().any(|previous| {
+                previous.code == diagnostic.code && previous.message == diagnostic.message
+            }) {
+                continue;
+            }
+            seen_warnings.push(diagnostic);
+            let group: Vec<_> = diagnostics
+                .iter()
+                .filter(|other| {
+                    other.severity == Severity::Warning
+                        && other.code == diagnostic.code
+                        && other.message == diagnostic.message
+                })
+                .collect();
+            reporter.warning_group(&group, source)
+        } else {
+            reporter.validation(diagnostic, source)
+        };
+        writeln!(stderr, "{rendered}").map_err(|error| diagnostic_error(&error, reporter))?;
     }
     Ok(())
+}
+
+fn diagnostic_error(error: &io::Error, reporter: &Reporter) -> CliError {
+    CliError::new(
+        3,
+        reporter.error(
+            "diagnostic-io",
+            &format!("cannot write diagnostics: {error}"),
+            "Check that stderr is writable.",
+        ),
+    )
 }
 
 fn finish_write(result: io::Result<()>, reporter: &Reporter) -> Result<(), CliError> {

@@ -30,6 +30,7 @@ The fixtures include normal changelogs and things a changelog probably shouldn't
 | [`src/parsers/markdown.rs`](../src/parsers/markdown.rs) | Shared Markdown blocks, links, and nesting limits |
 | [`src/validation.rs`](../src/validation.rs) | Convention checks, separate from parsing |
 | [`src/cli.rs`](../src/cli.rs) | Argument parsing, I/O, and exit codes; uses the public API |
+| [`src/cli/help.rs`](../src/cli/help.rs) | Help examples and format lists generated from the CLI's enums |
 | [`src/cli/render.rs`](../src/cli/render.rs) | Output formats and the buffered export limit |
 | [`src/cli/render/`](../src/cli/render/) | Readable text/Markdown and CSV views |
 | [`src/diagnostics.rs`](../src/diagnostics.rs) | Source annotations and colors |

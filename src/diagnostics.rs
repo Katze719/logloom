@@ -99,19 +99,66 @@ impl Reporter {
     }
 
     pub fn detection_error(&self, error: &DetectionError, path: &Path, input: &str) -> String {
-        let (id, line) = match error {
-            DetectionError::Ambiguous { .. } => ("ambiguous-format", None),
-            DetectionError::InvalidInput(error) if error.kind == ErrorKind::ResourceLimit => {
-                ("resource-limit", error.line)
-            }
-            DetectionError::InvalidInput(error) => ("detect-input", error.line),
-            _ => ("unknown-format", None),
+        let (id, line, help) = match error {
+            DetectionError::Ambiguous { .. } => (
+                "ambiguous-format",
+                None,
+                "Select --input-format FORMAT with 'logloom parse' or 'logloom validate' to choose one of these formats.",
+            ),
+            DetectionError::InvalidInput(error) if error.kind == ErrorKind::ResourceLimit => (
+                "resource-limit",
+                error.line,
+                "Keep input at or below 16 MiB and reduce Markdown nesting to at most 128 containers.",
+            ),
+            DetectionError::InvalidInput(error) if error.kind == ErrorKind::EmptyInput => (
+                "empty-input",
+                error.line,
+                "Provide a changelog file, or pipe changelog text into 'logloom parse -'.",
+            ),
+            DetectionError::InvalidInput(error) => (
+                "detect-input",
+                error.line,
+                "Fix the input syntax at the marked location. If this isn't JSON, select --input-format explicitly with parse or validate.",
+            ),
+            _ => (
+                "unknown-format",
+                None,
+                "Select --input-format with parse or validate if you know the format; 'logloom parse --help' lists the choices.",
+            ),
         };
         // Only the path and lines are used here; detection has no selected format.
         let source = SourceText::new(path, input, Format::GenericMarkdown);
-        self.render(Level::ERROR, id, &error.to_string(),
-            "Select --input-format FORMAT explicitly; use 'logloom parse --help' for available formats. Input is limited to 16 MiB and Markdown nesting to 128 containers.",
-            Some((&source, line)))
+        let message = match error {
+            DetectionError::InvalidInput(error) => error.message.clone(),
+            _ => error.to_string(),
+        };
+        self.render(Level::ERROR, id, &message, help, Some((&source, line)))
+    }
+
+    pub fn selection_error(
+        &self,
+        message: &str,
+        help: &str,
+        line: Option<usize>,
+        source: &SourceText<'_>,
+    ) -> String {
+        self.render(
+            Level::ERROR,
+            "latest-release",
+            message,
+            help,
+            Some((source, line)),
+        )
+    }
+
+    pub fn no_matches(&self) -> String {
+        self.render(
+            Level::NOTE,
+            "no-matches",
+            "no releases match the selected filters",
+            "Check the filter values; run without filters to see the available changes.",
+            None,
+        )
     }
 
     pub fn parse_error(&self, error: &ParseError, source: &SourceText<'_>) -> String {
@@ -119,6 +166,14 @@ impl Reporter {
             ErrorKind::ResourceLimit => (
                 "resource-limit",
                 "Keep input and expanded repeated metadata at or below 16 MiB, and Markdown nesting at or below 128 containers.",
+            ),
+            ErrorKind::EmptyInput if source.format == Format::Towncrier => (
+                "empty-input",
+                "Provide changelog or fragment text; only named misc fragments may be empty.",
+            ),
+            ErrorKind::EmptyInput if source.format != Format::KeepAChangelog => (
+                "empty-input",
+                "Provide a nonempty changelog file, or pass '-' to read changelog text from stdin.",
             ),
             _ => match source.format {
                 Format::KeepAChangelog => keep_a_changelog::parse_details(error.kind),
@@ -152,6 +207,33 @@ impl Reporter {
         )
     }
 
+    pub fn warning_group(&self, diagnostics: &[&Diagnostic], source: &SourceText<'_>) -> String {
+        let Some((first, rest)) = diagnostics.split_first() else {
+            return String::new();
+        };
+        let mut output = self.validation(first, source);
+        if rest.is_empty() {
+            return output;
+        }
+        let lines: Vec<_> = rest
+            .iter()
+            .filter_map(|diagnostic| diagnostic.line)
+            .map(|line| line.to_string())
+            .collect();
+        let summary = format!("{} more occurrences in the same file", rest.len());
+        let mut group = Group::with_title(Level::NOTE.primary_title(&summary));
+        let locations: Vec<_> = lines
+            .chunks(12)
+            .map(|chunk| format!("also at lines {}", chunk.join(", ")))
+            .collect();
+        for location in &locations {
+            group = group.element(Level::NOTE.message(location));
+        }
+        output.push('\n');
+        output.push_str(&self.renderer.render(&[group]));
+        output
+    }
+
     fn render(
         &self,
         level: Level<'_>,
@@ -162,17 +244,17 @@ impl Reporter {
     ) -> String {
         let mut group = Group::with_title(level.primary_title(message).id(id));
         if let Some((source, line)) = location {
-            let line = line.unwrap_or(1);
-            if let Some(text) = line
-                .checked_sub(1)
-                .and_then(|index| source.lines.get(index))
-                .filter(|text| !text.is_empty())
+            if let Some(line) = line
+                && let Some(text) = line
+                    .checked_sub(1)
+                    .and_then(|index| source.lines.get(index))
+                    .filter(|text| !text.is_empty())
             {
                 group = group.element(
                     Snippet::source(*text)
                         .path(source.path.as_str())
                         .line_start(line)
-                        .annotation(AnnotationKind::Primary.span(0..text.len()).label(message)),
+                        .annotation(AnnotationKind::Primary.span(0..text.len())),
                 );
             } else {
                 group = group.element(Origin::path(source.path.as_str()));

@@ -55,7 +55,18 @@ fn output_error(path: &Path, error: &io::Error, reporter: &Reporter) -> CliError
         reporter.error(
             "output-io",
             &format!("cannot write {}: {error}", path.display()),
-            "Check that the parent directory exists and is writable, and that disk space is available.",
+            match error.kind() {
+                io::ErrorKind::NotFound => {
+                    "Create the parent directory first, or choose an existing directory."
+                }
+                io::ErrorKind::IsADirectory => {
+                    "Choose a file path instead of a directory, e.g. --output-file changelog.json."
+                }
+                io::ErrorKind::PermissionDenied => "Choose a writable output file and directory.",
+                _ => {
+                    "Check that the parent directory is writable and that disk space is available."
+                }
+            },
         ),
     )
 }

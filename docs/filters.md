@@ -59,7 +59,7 @@ Different filters must all match; repeated values for one filter are alternative
 Section filters remove unmatched sections and releases with no matching sections.
 An empty category can still match. Published selection and `--limit` run after these filters.
 
-No matches? Still a success. JSON, YAML, and TOML have an empty `releases` array;
+No matches? Still a success, with a short note on stderr. JSON, YAML, and TOML have an empty `releases` array;
 JSONL is empty, CSV keeps its header, and text/Markdown keep the introduction
 and reference links. The entire input is validated first, so filters won't hide
 broken dates or malformed headings.

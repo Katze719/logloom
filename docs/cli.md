@@ -70,7 +70,8 @@ truncate your file before logloom has even had a look.
 The parent directory must already exist. Using the input path as the output
 (including a symlink to it) is a usage error. An output symlink to another file
 is replaced with a regular file; its target stays untouched. `--output-file -`
-creates a file literally named `-`; omit the option for stdout.
+uses stdout, just like omitting the option. Use `--output-file ./-` for a file
+literally named `-`.
 
 JSON is pretty-printed by default (`--output-format json`). Use
 `--output-format json-compact` for one line, still with a final newline.
@@ -93,7 +94,7 @@ error[invalid-date]: expected a real calendar date in YYYY-MM-DD format
  --> tests/fixtures/invalid-dates.md:3:1
   |
 3 | ## [2.0] - 2025-02-29
-  | ^^^^^^^^^^^^^^^^^^^^^ expected a real calendar date in YYYY-MM-DD format
+  | ^^^^^^^^^^^^^^^^^^^^^
   |
   = help: Use YYYY-MM-DD with a real Gregorian calendar date (years 0001–9999); February 29 requires a leap year.
 ```
@@ -103,6 +104,9 @@ the selected format. When there's source text to point at, it'll underline it.
 
 Input errors leave stdout empty and output files untouched. All validation
 findings go to stderr before exit; warnings alone still let the result through.
+Repeated warnings share one explanation and list the other affected lines.
+Errors keep their own source excerpts. A filter with no matches gets a short
+note on stderr and still exits 0.
 
 ## Colors
 
@@ -124,5 +128,6 @@ A nonempty `NO_COLOR` or `TERM=dumb` also disables auto colors. `always` and
 | 2 | Invalid command-line arguments |
 | 3 | File, UTF-8 decoding, diagnostic/output I/O, or serialization failure |
 
-More flags: `logloom parse --help`. More things to copy:
+`logloom parse --help` groups input, output, and filter options, lists the formats,
+and gives you commands to copy. More examples:
 [JSON examples](json.md) and [formats](formats/README.md).

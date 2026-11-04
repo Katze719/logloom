@@ -242,7 +242,7 @@ fn io_errors_use_the_same_colored_diagnostic_style() {
     assert!(output.stderr.contains(&0x1b));
     let diagnostic = String::from_utf8(output.stderr).unwrap();
     assert!(diagnostic.contains("read-input"));
-    assert!(diagnostic.contains("Check the file path and read permissions"));
+    assert!(diagnostic.contains("Check the file path"));
 }
 
 #[test]

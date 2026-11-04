@@ -4,35 +4,60 @@ use clap::Args;
 use logloom::{Changelog, Release, Section};
 
 #[derive(Debug, Args)]
+#[command(next_help_heading = "Filters")]
 pub struct Selection {
-    /// Select an exact release version (repeat for multiple versions).
-    #[arg(long = "release", value_name = "VERSION")]
+    /// Exact release identifier (repeatable).
+    #[arg(long = "release", value_name = "VERSION", value_parser = clap::builder::NonEmptyStringValueParser::new())]
     versions: Vec<String>,
-    /// Keep the published release with the newest date; missing dates or ties are errors.
+    /// Newest published release by date; fails on missing dates or ties.
     #[arg(long, conflicts_with_all = ["versions", "unreleased", "limit", "first_published"])]
     latest: bool,
-    /// Keep the first matching published release in file order, skipping drafts.
+    /// First published match in file order, skipping drafts.
     #[arg(long, conflicts_with_all = ["versions", "unreleased", "limit"])]
     first_published: bool,
-    /// Select pending releases, drafts, or fragments.
+    /// Pending releases, drafts, or fragments.
     #[arg(long, conflicts_with = "versions")]
     unreleased: bool,
-    /// Select a normalized category, ignoring ASCII case (repeatable).
-    #[arg(long = "category", value_name = "NAME")]
+    /// Category name, ignoring ASCII case (repeatable).
+    #[arg(long = "category", value_name = "NAME", value_parser = clap::builder::NonEmptyStringValueParser::new())]
     categories: Vec<String>,
-    /// Select a component, ignoring ASCII case (repeatable).
-    #[arg(long = "component", value_name = "NAME")]
+    /// Component name, ignoring ASCII case (repeatable).
+    #[arg(long = "component", value_name = "NAME", value_parser = clap::builder::NonEmptyStringValueParser::new())]
     components: Vec<String>,
-    /// Select an exact package name (repeatable).
-    #[arg(long = "package", value_name = "NAME")]
+    /// Exact package name (repeatable).
+    #[arg(long = "package", value_name = "NAME", value_parser = clap::builder::NonEmptyStringValueParser::new())]
     packages: Vec<String>,
-    /// Keep at most N matching releases in file order (N must be positive).
-    #[arg(long, value_name = "N")]
+    /// First N matches in file order; N must be positive.
+    #[arg(long, value_name = "N", value_parser = positive_limit, allow_negative_numbers = true)]
     limit: Option<NonZeroUsize>,
 }
 
+#[derive(Debug)]
+pub struct SelectionError {
+    pub message: String,
+    pub help: &'static str,
+    pub line: Option<usize>,
+}
+
+fn positive_limit(value: &str) -> Result<NonZeroUsize, &'static str> {
+    value
+        .parse()
+        .map_err(|_| "use a positive whole number, e.g. --limit 3")
+}
+
 impl Selection {
-    pub fn apply(&self, changelog: &mut Changelog) -> Result<(), &'static str> {
+    pub const fn is_active(&self) -> bool {
+        self.latest
+            || self.first_published
+            || self.unreleased
+            || self.limit.is_some()
+            || !self.versions.is_empty()
+            || !self.categories.is_empty()
+            || !self.components.is_empty()
+            || !self.packages.is_empty()
+    }
+
+    pub fn apply(&self, changelog: &mut Changelog) -> Result<(), SelectionError> {
         changelog.releases.retain_mut(|release| {
             if !self.matches_release(release) {
                 return false;
@@ -49,9 +74,11 @@ impl Selection {
             let mut newest = None;
             let mut tied = false;
             for release in &changelog.releases {
-                let date = release.date.as_deref().ok_or(
-                    "cannot determine the latest release: a matching published release has no date",
-                )?;
+                let date = release.date.as_deref().ok_or_else(|| SelectionError {
+                    message: format!("cannot choose --latest: release {:?}{} has no date", release.version.as_deref().unwrap_or("unversioned"), release.attributes.get("package").map_or_else(String::new, |package| format!(" ({package})"))),
+                    help: "Replace --latest with --first-published for file order, or --release VERSION for a specific release.",
+                    line: Some(release.span.line),
+                })?;
                 if newest.is_none_or(|newest| date > newest) {
                     newest = Some(date);
                     tied = false;
@@ -60,9 +87,22 @@ impl Selection {
                 }
             }
             if tied {
-                return Err(
-                    "cannot determine the latest release: multiple matching releases share the newest date",
-                );
+                let matches: Vec<_> = changelog
+                    .releases
+                    .iter()
+                    .filter(|release| release.date.as_deref() == newest)
+                    .collect();
+                return Err(SelectionError {
+                    message: format!(
+                        "cannot choose --latest: {} releases share the newest date ({})",
+                        matches.len(),
+                        newest.unwrap_or_default()
+                    ),
+                    help: "Narrow the matches with --package, or replace --latest with --release VERSION or --first-published.",
+                    line: matches
+                        .first()
+                        .map(|release| release.date_span.unwrap_or(release.span).line),
+                });
             }
             let newest = newest.map(str::to_owned);
             changelog.releases.retain(|release| release.date == newest);

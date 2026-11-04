@@ -161,7 +161,7 @@ fn detection_failures_use_source_diagnostics_and_explicit_colors() {
         let error = String::from_utf8(output.stderr).unwrap();
         assert!(error.contains(marker));
         assert!(error.contains("<stdin>"));
-        assert!(error.contains("Select --input-format"));
+        assert!(error.contains("--input-format"));
     }
 }
 
