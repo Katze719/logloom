@@ -32,9 +32,9 @@ fn exact_versions_are_repeatable_and_preserve_document_order() {
     let output = invoke(&[
         "parse",
         "tests/fixtures/standard.md",
-        "--version",
+        "--release",
         "2.0.0",
-        "--version",
+        "--release",
         "2.1.0",
     ])
     .unwrap();
@@ -56,7 +56,7 @@ fn exact_versions_are_repeatable_and_preserve_document_order() {
 
     let output = stdin(
         "# Changelog\n\n## [release/alpha+build] - 2026-10-01\n\n### Added\n\n- Works.\n",
-        &["--version", "release/alpha+build"],
+        &["--release", "release/alpha+build"],
     )
     .unwrap();
     assert!(output.status.success());
@@ -84,12 +84,59 @@ fn latest_skips_pending_and_is_applied_after_category_matching() {
 }
 
 #[test]
-fn latest_uses_source_order_instead_of_sorting_versions_or_dates() {
-    let output = stdin("# Changelog\n\n## [older] - 2026-01-01\n\n### Added\n\n- First.\n\n## [newer] - 2026-02-01\n\n### Added\n\n- Second.\n", &["--latest"]).unwrap();
+fn latest_uses_dates_while_first_published_uses_document_order() {
+    for (flag, expected) in [("--latest", "newer"), ("--first-published", "older")] {
+        let output = stdin("# Changelog\n\n## [older] - 2026-01-01\n\n### Added\n\n- First.\n\n## [newer] - 2026-02-01\n\n### Added\n\n- Second.\n", &[flag]).unwrap();
+        assert!(output.status.success());
+        let model: Changelog = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(model.releases.len(), 1);
+        assert_eq!(model.releases[0].version.as_deref(), Some(expected));
+    }
+}
+
+#[test]
+fn latest_rejects_missing_dates_and_ties_without_writing_the_output() {
+    let directory = tempfile::tempdir().unwrap();
+    let input = directory.path().join("CHANGELOG.md");
+    let destination = directory.path().join("result.json");
+    for source in [
+        "# Changelog\n\n## [alpha]\n\n### Added\n\n- First.\n\n## [beta] - 2026-11-04\n",
+        "# Changelog\n\n## [alpha] - 2026-11-04\n\n## [beta] - 2026-11-04\n",
+    ] {
+        std::fs::write(&input, source).unwrap();
+        std::fs::write(&destination, "keep me").unwrap();
+        let output = Command::new(env!("CARGO_BIN_EXE_logloom"))
+            .arg("parse")
+            .arg(&input)
+            .args(["--latest", "-o"])
+            .arg(&destination)
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(1));
+        assert_eq!(output.stdout, Vec::<u8>::new());
+        assert_eq!(std::fs::read_to_string(&destination).unwrap(), "keep me");
+        let error = String::from_utf8(output.stderr).unwrap();
+        assert!(error.contains("error[latest-release]"));
+        assert!(error.contains("--first-published"));
+        assert!(error.contains("--release"));
+        let output = Command::new(env!("CARGO_BIN_EXE_logloom"))
+            .arg("parse")
+            .arg(&input)
+            .arg("--first-published")
+            .output()
+            .unwrap();
+        assert!(output.status.success());
+    }
+}
+
+#[test]
+fn latest_ignores_older_ties_and_unmatched_undated_sections() {
+    let source = "# Changelog\n\n## [a] - 2026-01-01\n\n### Fixed\n- A.\n\n## [b] - 2026-01-01\n\n### Fixed\n- B.\n\n## [c] - 2026-02-01\n\n### Fixed\n- C.\n\n## [undated]\n\n### Added\n- D.\n";
+    let output = stdin(source, &["--latest", "--category", "Fixed"]).unwrap();
     assert!(output.status.success());
     let model: Changelog = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(model.releases.len(), 1);
-    assert_eq!(model.releases[0].version.as_deref(), Some("older"));
+    assert_eq!(model.releases[0].version.as_deref(), Some("c"));
 }
 
 #[test]
@@ -97,7 +144,7 @@ fn repeated_categories_use_normalized_names_and_keep_section_order() {
     let output = invoke(&[
         "parse",
         "tests/fixtures/standard.md",
-        "--version",
+        "--release",
         "2.1.0",
         "--category",
         "SECURITY",
@@ -252,7 +299,7 @@ fn unreleased_selects_pending_releases_and_limit_includes_them_by_default() {
 
 #[test]
 fn github_drafts_are_pending_and_prereleases_can_be_latest() {
-    let input = r#"[{"tag_name":"v3","draft":true,"body":"Draft"},{"tag_name":"v2-rc1","prerelease":true,"body":"Preview"},{"tag_name":"v1","body":"Stable"}]"#;
+    let input = r#"[{"tag_name":"v3","draft":true,"body":"Draft"},{"tag_name":"v2-rc1","prerelease":true,"published_at":"2026-11-04T12:00:00Z","body":"Preview"},{"tag_name":"v1","published_at":"2026-10-01T12:00:00Z","body":"Stable"}]"#;
     for (selection, expected) in [("--latest", "v2-rc1"), ("--unreleased", "v3")] {
         let output = stdin(
             input,
@@ -273,7 +320,12 @@ fn github_drafts_are_pending_and_prereleases_can_be_latest() {
 #[test]
 fn unversioned_dated_records_are_published_but_unknown_notes_are_neither() {
     for (file, format, selection, count) in [
-        ("examples/gnu-ChangeLog", "gnu-changelog", "--latest", 1),
+        (
+            "examples/gnu-ChangeLog",
+            "gnu-changelog",
+            "--first-published",
+            1,
+        ),
         ("examples/gnu-ChangeLog", "gnu-changelog", "--unreleased", 0),
         (
             "examples/github-release-notes.md",
@@ -305,7 +357,7 @@ fn unversioned_dated_records_are_published_but_unknown_notes_are_neither() {
 fn filtering_preserves_original_source_links_and_spans_even_without_matches() {
     for version in ["2.0.0", "missing"] {
         let output =
-            invoke(&["parse", "tests/fixtures/standard.md", "--version", version]).unwrap();
+            invoke(&["parse", "tests/fixtures/standard.md", "--release", version]).unwrap();
         assert!(output.status.success());
         let model: Changelog = serde_json::from_slice(&output.stdout).unwrap();
         assert_eq!(model.source, include_str!("fixtures/standard.md"));
@@ -345,7 +397,7 @@ fn filtering_preserves_original_source_links_and_spans_even_without_matches() {
 #[test]
 fn filtering_never_hides_invalid_releases_or_malformed_input() {
     for (file, options) in [
-        ("tests/fixtures/invalid-dates.md", vec!["--version", "1.6"]),
+        ("tests/fixtures/invalid-dates.md", vec!["--release", "1.6"]),
         (
             "tests/fixtures/invalid-dates.md",
             vec!["--category", "missing"],
@@ -364,14 +416,18 @@ fn filtering_never_hides_invalid_releases_or_malformed_input() {
 #[test]
 fn conflicting_selections_and_invalid_limits_are_usage_errors() {
     for options in [
-        vec!["--latest", "--version", "1"],
-        vec!["--unreleased", "--version", "1"],
+        vec!["--latest", "--release", "1"],
+        vec!["--unreleased", "--release", "1"],
         vec!["--latest", "--unreleased"],
         vec!["--latest", "--limit", "1"],
+        vec!["--latest", "--first-published"],
+        vec!["--first-published", "--release", "1"],
+        vec!["--first-published", "--unreleased"],
+        vec!["--first-published", "--limit", "1"],
         vec!["--limit", "0"],
         vec!["--limit", "-1"],
         vec!["--limit", "many"],
-        vec!["--version"],
+        vec!["--release"],
     ] {
         let mut args = vec!["parse", "tests/fixtures/standard.md"];
         args.extend(options);

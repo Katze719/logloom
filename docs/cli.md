@@ -7,8 +7,8 @@ logloom parse CHANGELOG.md
 logloom parse CHANGELOG.md --input-format keep-a-changelog --output-format json
 ```
 
-Both give you pretty-printed JSON and a final newline. Keep a Changelog is the
-default input. `--output-format json` is there if you enjoy extra keystrokes;
+Both give you pretty-printed JSON and a final newline. Input defaults to
+`auto`, which refuses ambiguous formats. `--output-format json` is there if you enjoy extra keystrokes;
 `json-compact` gives you single-line JSON. Pick another
 [input format](formats/README.md) like this:
 
@@ -20,17 +20,38 @@ logloom parse examples/github-release-notes.json --input-format github-release-n
 `--input-format` selects the reader, `--output-format` selects the result format,
 and `--output-file` chooses where it goes.
 
+```sh
+logloom parse CHANGELOG.md --output-format yaml
+logloom parse CHANGELOG.md --latest --output-format markdown -o release.md
+```
+
+Output choices: `json`, `json-compact`, `text`, `yaml`, `markdown`, `toml`,
+`jsonl`, and `csv`. See [output formats](output-formats.md) for their shapes.
+
 ## Pick the useful bits
 
 ```sh
 logloom --version
-logloom parse CHANGELOG.md --version 2.1.0
+logloom parse CHANGELOG.md --release 2.1.0
 logloom parse CHANGELOG.md --latest --category Fixed
+logloom parse CHANGELOG.md --first-published
 logloom parse CHANGELOG.md --unreleased --component "Firmware components"
 ```
 
-`logloom --version` is the tool version. Under `parse`, `--version` selects a
-release. [Filters](filters.md) covers combinations, packages, and limits.
+`--version` is always the tool version, including after a subcommand.
+`--release` selects a release identifier. `--latest` compares calendar dates;
+`--first-published` uses file order. [Filters](filters.md) covers the details.
+
+## Inspect or check
+
+```sh
+logloom detect CHANGELOG.md
+logloom validate CHANGELOG.md --input-format keep-a-changelog
+```
+
+`detect` prints one format name. `validate` exports nothing: findings go to
+stderr, errors exit 1, and warnings alone exit 0. Both accept `-` for stdin and
+`--fragment-name` for Towncrier. See [detection and validation](detection.md).
 
 ## Read stdin or save the result
 
@@ -53,7 +74,8 @@ creates a file literally named `-`; omit the option for stdout.
 
 JSON is pretty-printed by default (`--output-format json`). Use
 `--output-format json-compact` for one line, still with a final newline.
-Both work with stdout and file output.
+All output formats work with stdout and file output. The filename extension
+doesn't select the format.
 
 Use UTF-8 and keep the input at or below 16 MiB. That includes stdin.
 Closing a pipe early is fine; the CLI handles it.
@@ -80,7 +102,7 @@ February 29, 2025 didn't happen. The error comes with a location and a hint for
 the selected format. When there's source text to point at, it'll underline it.
 
 Input errors leave stdout empty and output files untouched. All validation
-findings go to stderr before exit; warnings alone still let the JSON through.
+findings go to stderr before exit; warnings alone still let the result through.
 
 ## Colors
 
@@ -91,7 +113,7 @@ logloom --color never parse CHANGELOG.md
 
 The default is `auto`: colors on a stderr terminal, plain text when redirected.
 A nonempty `NO_COLOR` or `TERM=dumb` also disables auto colors. `always` and
-`never` override that. Your JSON stays free of escape-code confetti.
+`never` override that. Exports stay free of diagnostic escape-code confetti.
 
 ## Exit codes
 

@@ -1,6 +1,6 @@
 # Keep a Changelog
 
-The default. Follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/)
+Follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/)
 and common 1.0.0 layouts. Give it the document you've already written.
 
 ## Start here
@@ -60,7 +60,7 @@ is fine. Dates are optional, and we keep their text. Nothing gets sorted for you
 
 Dates use Gregorian `YYYY-MM-DD`, years 0001–9999. Empty groups and non-SemVer
 versions are fine. Validation is a separate library call; the
-[CLI](../cli.md#diagnostics) checks automatically and holds back JSON on errors.
+[CLI](../cli.md#diagnostics) checks automatically and holds back output on errors.
 
 ## The small print
 
@@ -75,4 +75,4 @@ versions are fine. Validation is a separate library call; the
   special interpretation. CommonMark is permissive: a lonely delimiter can just be text.
 - Input is limited to 16 MiB and 128 nested Markdown containers, including
   inline formatting. The owned model and JSON serialization use additional memory.
-- No automatic format detection is implemented; use `--input-format keep-a-changelog`.
+- Use `--input-format keep-a-changelog` to bypass automatic detection.

@@ -1,7 +1,8 @@
 # Pick a format
 
-Use `--input-format` to pick one. The default is Keep a Changelog.
-Format guessing and network fetching aren't implemented, so bring the file.
+The default is `--input-format auto`. [Detection](../detection.md) uses specific
+signatures and asks you to pick when they're ambiguous. Choose a format explicitly
+to skip detection. Bring the file; network fetching isn't implemented.
 
 ```sh
 logloom parse CHANGELOG.md --input-format conventional-changelog
@@ -23,8 +24,9 @@ The original text and order stay intact. Files can be up to 16 MiB, with at most
 
 Changeset summaries copied across packages and component names repeated across
 sections each have a 16 MiB expansion limit. Pass individual documents or
-fragments. Rendering, templates, directory aggregation, and history generation
-aren't part of this tool.
+fragments. Custom templates, directory aggregation, and Git history generation
+aren't part of this tool. Pick an [output format](../output-formats.md) to export
+the parsed releases.
 
 Start with an [example file](../../examples/README.md), then see what ends up
 in the [JSON](../json.md).

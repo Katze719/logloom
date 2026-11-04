@@ -1,16 +1,19 @@
 use std::num::NonZeroUsize;
 
 use clap::Args;
-use logloom::{Category, Changelog, Release, Section};
+use logloom::{Changelog, Release, Section};
 
 #[derive(Debug, Args)]
 pub struct Selection {
     /// Select an exact release version (repeat for multiple versions).
-    #[arg(long = "version", value_name = "VERSION")]
+    #[arg(long = "release", value_name = "VERSION")]
     versions: Vec<String>,
+    /// Keep the published release with the newest date; missing dates or ties are errors.
+    #[arg(long, conflicts_with_all = ["versions", "unreleased", "limit", "first_published"])]
+    latest: bool,
     /// Keep the first matching published release in file order, skipping drafts.
     #[arg(long, conflicts_with_all = ["versions", "unreleased", "limit"])]
-    latest: bool,
+    first_published: bool,
     /// Select pending releases, drafts, or fragments.
     #[arg(long, conflicts_with = "versions")]
     unreleased: bool,
@@ -29,7 +32,7 @@ pub struct Selection {
 }
 
 impl Selection {
-    pub fn apply(&self, changelog: &mut Changelog) {
+    pub fn apply(&self, changelog: &mut Changelog) -> Result<(), &'static str> {
         changelog.releases.retain_mut(|release| {
             if !self.matches_release(release) {
                 return false;
@@ -43,10 +46,32 @@ impl Selection {
             true
         });
         if self.latest {
+            let mut newest = None;
+            let mut tied = false;
+            for release in &changelog.releases {
+                let date = release.date.as_deref().ok_or(
+                    "cannot determine the latest release: a matching published release has no date",
+                )?;
+                if newest.is_none_or(|newest| date > newest) {
+                    newest = Some(date);
+                    tied = false;
+                } else if newest == Some(date) {
+                    tied = true;
+                }
+            }
+            if tied {
+                return Err(
+                    "cannot determine the latest release: multiple matching releases share the newest date",
+                );
+            }
+            let newest = newest.map(str::to_owned);
+            changelog.releases.retain(|release| release.date == newest);
+        } else if self.first_published {
             changelog.releases.truncate(1);
         } else if let Some(limit) = self.limit {
             changelog.releases.truncate(limit.get());
         }
+        Ok(())
     }
 
     fn matches_release(&self, release: &Release) -> bool {
@@ -65,7 +90,7 @@ impl Selection {
         let pending = draft || (release.version.is_none() && !dated_record && !unknown);
         let published = !draft && (release.version.is_some() || dated_record);
 
-        (!self.latest || published)
+        (!(self.latest || self.first_published) || published)
             && (!self.unreleased || pending)
             && (self.versions.is_empty()
                 || release
@@ -82,11 +107,9 @@ impl Selection {
     fn matches_section(&self, section: &Section) -> bool {
         (self.categories.is_empty()
             || section.category.as_ref().is_some_and(|category| {
-                category_name(category).is_some_and(|name| {
-                    self.categories
-                        .iter()
-                        .any(|value| value.eq_ignore_ascii_case(name))
-                })
+                self.categories
+                    .iter()
+                    .any(|value| value.eq_ignore_ascii_case(category.as_str()))
             }))
             && (self.components.is_empty()
                 || section.component.as_ref().is_some_and(|component| {
@@ -94,18 +117,5 @@ impl Selection {
                         .iter()
                         .any(|value| value.eq_ignore_ascii_case(component))
                 }))
-    }
-}
-
-fn category_name(category: &Category) -> Option<&str> {
-    match category {
-        Category::Added => Some("Added"),
-        Category::Changed => Some("Changed"),
-        Category::Deprecated => Some("Deprecated"),
-        Category::Removed => Some("Removed"),
-        Category::Fixed => Some("Fixed"),
-        Category::Security => Some("Security"),
-        Category::Custom(name) => Some(name),
-        _ => None,
     }
 }

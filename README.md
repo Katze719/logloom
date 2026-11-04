@@ -1,9 +1,9 @@
 # logloom
 
-Changelogs in, JSON out. A CLI and Rust library for Markdown histories,
-release notes, and news fragments.
+Changelogs in. JSON, Markdown, and friends out. A CLI and Rust library for
+Markdown histories, release notes, and news fragments.
 
-## Formats
+## Input formats
 
 - [Keep a Changelog](examples/keep-a-changelog.md), including [component categories](examples/extended-keep-a-changelog.md)
 - [Conventional Changelog](examples/conventional-changelog.md)
@@ -15,7 +15,7 @@ release notes, and news fragments.
 - [GNU NEWS](examples/gnu-news.txt)
 - [GNU ChangeLog](examples/gnu-ChangeLog)
 
-[Syntax and limits](docs/formats/README.md) - [All examples](examples/README.md)
+[Syntax and limits](docs/formats/README.md) - [All examples](examples/README.md) - [Output formats](docs/output-formats.md)
 
 Yes, there are this many ways to write down "fixed a bug".
 
@@ -31,13 +31,17 @@ cargo install --path . --locked
 
 ```sh
 logloom parse CHANGELOG.md
+logloom detect CHANGELOG.md
+logloom validate CHANGELOG.md
 logloom parse CHANGELOG.md --input-format conventional-changelog
 logloom parse CHANGELOG.md --latest --category Fixed -o release.json
+logloom parse CHANGELOG.md --latest --output-format markdown -o release.md
 cat CHANGELOG.md | logloom parse -
 logloom --help
 ```
 
-JSON goes to stdout, complaints go to stderr. If there's an error, stdout stays empty.
+The result goes to stdout, complaints go to stderr. JSON is the default.
+If there's an error, stdout stays empty.
 
 Try it straight from the checkout:
 

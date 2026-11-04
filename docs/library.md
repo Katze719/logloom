@@ -58,6 +58,9 @@ gets opened. The CLI does this for files. For stdin, use `--fragment-name`.
 | `validate(&Changelog)` | `Vec<Diagnostic>`; does not sort or mutate content |
 | `validate_for_format(&Changelog, Format)` | Explicit override of the stored validation format |
 | `serde_json::to_string_pretty(&changelog)` | JSON serialization |
+| `logloom::detect(input)` | Detect specific signatures; returns a format or a typed detection error |
+| `logloom::detect_named(input, name)` | Detection using a Towncrier fragment filename hint |
+| `Category::as_str()`, `Format::as_str()` | Display names and stable format names |
 
 `ParseError` gives you `kind`, `line`, and `message`: empty input, missing
 releases, malformed headings/data, unsupported structure, or a resource limit.

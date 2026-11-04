@@ -14,11 +14,13 @@
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 
+mod detection;
 mod error;
 mod model;
 mod parsers;
 mod validation;
 
+pub use detection::{DetectionError, detect, detect_named};
 pub use error::{ErrorKind, ParseError};
 pub use model::{
     Category, Changelog, Entry, EntryKind, LinkDefinition, Metadata, Release, Section, Span,
@@ -51,6 +53,24 @@ pub enum Format {
     /// Traditional date-and-author GNU `ChangeLog` records.
     #[serde(rename = "gnu-changelog")]
     GnuChangeLog,
+}
+
+impl Format {
+    /// Stable input-format name used by the CLI and serialized models.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::KeepAChangelog => "keep-a-changelog",
+            Self::ConventionalChangelog => "conventional-changelog",
+            Self::GenericMarkdown => "generic-markdown",
+            Self::GitHubReleaseNotes => "github-release-notes",
+            Self::Changesets => "changesets",
+            Self::Towncrier => "towncrier",
+            Self::DebianChangelog => "debian-changelog",
+            Self::GnuNews => "gnu-news",
+            Self::GnuChangeLog => "gnu-changelog",
+        }
+    }
 }
 
 /// Maximum UTF-8 input size (16 MiB), enforced before Markdown parsing.

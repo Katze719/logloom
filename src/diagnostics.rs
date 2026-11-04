@@ -3,7 +3,7 @@ use std::path::Path;
 
 use annotate_snippets::{AnnotationKind, Group, Level, Origin, Renderer, Snippet};
 use clap::ValueEnum;
-use logloom::{Diagnostic, ErrorKind, Format, ParseError, Severity};
+use logloom::{DetectionError, Diagnostic, ErrorKind, Format, ParseError, Severity};
 
 mod formats;
 mod keep_a_changelog;
@@ -96,6 +96,22 @@ impl Reporter {
 
     pub fn error(&self, id: &str, message: &str, help: &str) -> String {
         self.render(Level::ERROR, id, message, help, None)
+    }
+
+    pub fn detection_error(&self, error: &DetectionError, path: &Path, input: &str) -> String {
+        let (id, line) = match error {
+            DetectionError::Ambiguous { .. } => ("ambiguous-format", None),
+            DetectionError::InvalidInput(error) if error.kind == ErrorKind::ResourceLimit => {
+                ("resource-limit", error.line)
+            }
+            DetectionError::InvalidInput(error) => ("detect-input", error.line),
+            _ => ("unknown-format", None),
+        };
+        // Only the path and lines are used here; detection has no selected format.
+        let source = SourceText::new(path, input, Format::GenericMarkdown);
+        self.render(Level::ERROR, id, &error.to_string(),
+            "Select --input-format FORMAT explicitly; use 'logloom parse --help' for available formats. Input is limited to 16 MiB and Markdown nesting to 128 containers.",
+            Some((&source, line)))
     }
 
     pub fn parse_error(&self, error: &ParseError, source: &SourceText<'_>) -> String {

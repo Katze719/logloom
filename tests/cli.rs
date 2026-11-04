@@ -67,7 +67,14 @@ fn standard_input_works() {
 
 #[test]
 fn help_version_and_subcommand_help_are_available() {
-    for arguments in [vec!["--help"], vec!["--version"], vec!["parse", "--help"]] {
+    for arguments in [
+        vec!["--help"],
+        vec!["--version"],
+        vec!["parse", "--help"],
+        vec!["parse", "--version"],
+        vec!["validate", "--version"],
+        vec!["detect", "--version"],
+    ] {
         let output = invoke(&arguments).unwrap();
         assert!(output.status.success());
         assert_eq!(output.stderr, Vec::<u8>::new());
@@ -88,7 +95,7 @@ fn usage_errors_exit_two_and_use_stderr() {
         vec!["parse", "-", "--format", "keep-a-changelog"],
         vec!["parse", "-", "--output", "json"],
         vec!["parse", "-", "--input-format", "unknown"],
-        vec!["parse", "-", "--output-format", "yaml"],
+        vec!["parse", "-", "--output-format", "xml"],
         vec!["parse", "-", "--compact"],
     ] {
         let output = invoke(&arguments).unwrap();
@@ -198,7 +205,7 @@ fn color_never_and_auto_keep_redirected_diagnostics_plain() {
 #[test]
 fn color_overrides_also_apply_to_usage_errors() {
     for color in ["always", "never"] {
-        let output = invoke(&["parse", "-", "--output-format", "yaml", "--color", color]).unwrap();
+        let output = invoke(&["parse", "-", "--output-format", "xml", "--color", color]).unwrap();
         assert_eq!(output.status.code(), Some(2));
         assert_eq!(output.stdout, Vec::<u8>::new());
         assert_eq!(output.stderr.contains(&0x1b), color == "always");
@@ -252,7 +259,11 @@ fn stdin_errors_handle_unicode_and_crlf_source_locations() {
 
 #[test]
 fn duplicate_releases_with_warnings_still_emit_no_json() {
-    let output = stdin("## 1.0\n## 1.0\n").unwrap();
+    let output = stdin_with_arguments(
+        "## 1.0\n## 1.0\n",
+        &["parse", "-", "--input-format", "keep-a-changelog"],
+    )
+    .unwrap();
     assert_eq!(output.status.code(), Some(1));
     assert_eq!(output.stdout, Vec::<u8>::new());
     let diagnostic = String::from_utf8(output.stderr).unwrap();

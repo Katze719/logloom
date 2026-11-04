@@ -97,7 +97,7 @@ fn input_errors_and_usage_errors_leave_existing_output_untouched() {
         ("tests/fixtures/malformed-heading.md", vec![], 1),
         (
             "tests/fixtures/invalid-dates.md",
-            vec!["--version", "1.6"],
+            vec!["--release", "1.6"],
             1,
         ),
         (
@@ -107,12 +107,17 @@ fn input_errors_and_usage_errors_leave_existing_output_untouched() {
         ),
         (
             "tests/fixtures/standard.md",
-            vec!["--output-format", "yaml"],
+            vec!["--output-format", "xml"],
             2,
         ),
         (
             "tests/fixtures/standard.md",
-            vec!["--fragment-name", "1.bugfix.rst"],
+            vec![
+                "--input-format",
+                "keep-a-changelog",
+                "--fragment-name",
+                "1.bugfix.rst",
+            ],
             2,
         ),
         ("does-not-exist.md", vec![], 3),

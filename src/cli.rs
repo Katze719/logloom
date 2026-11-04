@@ -6,18 +6,25 @@ use std::process::ExitCode;
 
 use clap::{Args, CommandFactory, Parser, Subcommand, ValueEnum};
 use logloom::{
-    Diagnostic, Format, MAX_INPUT_BYTES, Severity, parse, parse_named, validate_for_format,
+    Changelog, Diagnostic, Format, MAX_INPUT_BYTES, Severity, detect, detect_named, parse,
+    parse_named, validate,
 };
 
 use crate::diagnostics::{ColorMode, Reporter, SourceText};
 
 mod output;
+mod render;
 mod selection;
 
+use render::OutputFormat;
 use selection::Selection;
 
 #[derive(Debug, Parser)]
-#[command(version, about = "Parse existing changelogs into structured JSON")]
+#[command(
+    version,
+    propagate_version = true,
+    about = "Parse and export existing changelogs"
+)]
 struct Cli {
     /// Color diagnostics: auto detects stderr terminals and respects `NO_COLOR`.
     #[arg(long, global = true, value_enum, default_value = "auto")]
@@ -29,24 +36,42 @@ struct Cli {
 #[derive(Debug, Subcommand)]
 enum Command {
     /// Parse a changelog file (or - for standard input).
-    #[command(disable_version_flag = true)]
     Parse(ParseArgs),
+    /// Check a changelog without exporting it; diagnostics go to stderr.
+    Validate(InputArgs),
+    /// Print the detected input-format name without validating or exporting.
+    Detect(DetectArgs),
 }
 
 #[derive(Debug, Args)]
-struct ParseArgs {
+struct InputArgs {
     /// UTF-8 changelog file, or - to read stdin (maximum 16 MiB).
     file: PathBuf,
-    /// Input changelog format.
-    #[arg(long, value_enum, default_value = "keep-a-changelog")]
+    /// Input format; auto refuses ambiguous or unrecognized input.
+    #[arg(long, value_enum, default_value = "auto")]
     input_format: InputFormat,
     /// Towncrier fragment filename for stdin, e.g. 123.bugfix.rst.
     #[arg(long)]
     fragment_name: Option<String>,
-    /// Output format. JSON ends with a newline.
+}
+
+#[derive(Debug, Args)]
+struct DetectArgs {
+    /// UTF-8 changelog file, or - to read stdin (maximum 16 MiB).
+    file: PathBuf,
+    /// Towncrier fragment filename hint for stdin, e.g. 123.bugfix.rst.
+    #[arg(long)]
+    fragment_name: Option<String>,
+}
+
+#[derive(Debug, Args)]
+struct ParseArgs {
+    #[command(flatten)]
+    input: InputArgs,
+    /// Output format (pretty-printed JSON by default).
     #[arg(long, value_enum, default_value = "json")]
     output_format: OutputFormat,
-    /// Write JSON to this file instead of stdout; replaces an existing file.
+    /// Write to this file instead of stdout; replaces an existing file.
     #[arg(short = 'o', long, value_name = "PATH")]
     output_file: Option<PathBuf>,
     #[command(flatten)]
@@ -55,6 +80,7 @@ struct ParseArgs {
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum InputFormat {
+    Auto,
     KeepAChangelog,
     ConventionalChangelog,
     GenericMarkdown,
@@ -66,14 +92,6 @@ enum InputFormat {
     GnuNews,
     #[value(name = "gnu-changelog")]
     GnuChangeLog,
-}
-
-#[derive(Debug, Clone, Copy, ValueEnum)]
-enum OutputFormat {
-    /// Pretty-printed JSON.
-    Json,
-    /// Single-line JSON.
-    JsonCompact,
 }
 
 #[derive(Debug)]
@@ -113,23 +131,66 @@ pub fn run() -> Result<ExitCode, CliError> {
             });
         }
     };
-    let Command::Parse(args) = cli.command;
-    parse_file(&args, &Reporter::new(cli.color))
+    let reporter = Reporter::new(cli.color);
+    match cli.command {
+        Command::Parse(args) => parse_file(&args, &reporter),
+        Command::Validate(args) => {
+            let changelog = read_document(&args, &reporter)?;
+            check_document(&args.file, &changelog, &reporter)
+        }
+        Command::Detect(args) => {
+            let input = read_input(&args.file, &reporter)?;
+            let name = input_name(&args.file, args.fragment_name.as_deref());
+            let format = detect_input(&input, name, &args.file, &reporter)?;
+            finish_write(
+                writeln!(io::stdout().lock(), "{}", format.as_str()),
+                &reporter,
+            )?;
+            Ok(ExitCode::SUCCESS)
+        }
+    }
 }
 
-fn parse_file(args: &ParseArgs, reporter: &Reporter) -> Result<ExitCode, CliError> {
-    let format = match args.input_format {
-        InputFormat::KeepAChangelog => Format::KeepAChangelog,
-        InputFormat::ConventionalChangelog => Format::ConventionalChangelog,
-        InputFormat::GenericMarkdown => Format::GenericMarkdown,
-        InputFormat::GitHubReleaseNotes => Format::GitHubReleaseNotes,
-        InputFormat::Changesets => Format::Changesets,
-        InputFormat::Towncrier => Format::Towncrier,
-        InputFormat::DebianChangelog => Format::DebianChangelog,
-        InputFormat::GnuNews => Format::GnuNews,
-        InputFormat::GnuChangeLog => Format::GnuChangeLog,
-    };
-    if args.fragment_name.is_some() && format != Format::Towncrier {
+impl InputFormat {
+    const fn explicit(self) -> Option<Format> {
+        Some(match self {
+            Self::Auto => return None,
+            Self::KeepAChangelog => Format::KeepAChangelog,
+            Self::ConventionalChangelog => Format::ConventionalChangelog,
+            Self::GenericMarkdown => Format::GenericMarkdown,
+            Self::GitHubReleaseNotes => Format::GitHubReleaseNotes,
+            Self::Changesets => Format::Changesets,
+            Self::Towncrier => Format::Towncrier,
+            Self::DebianChangelog => Format::DebianChangelog,
+            Self::GnuNews => Format::GnuNews,
+            Self::GnuChangeLog => Format::GnuChangeLog,
+        })
+    }
+}
+
+fn input_name<'a>(file: &'a Path, fragment_name: Option<&'a str>) -> Option<&'a str> {
+    fragment_name.or_else(|| {
+        if file == Path::new("-") {
+            None
+        } else {
+            file.file_name().and_then(|name| name.to_str())
+        }
+    })
+}
+
+fn detect_input(
+    input: &str,
+    name: Option<&str>,
+    path: &Path,
+    reporter: &Reporter,
+) -> Result<Format, CliError> {
+    name.map_or_else(|| detect(input), |name| detect_named(input, name))
+        .map_err(|error| CliError::new(1, reporter.detection_error(&error, path, input)))
+}
+
+fn read_document(args: &InputArgs, reporter: &Reporter) -> Result<Changelog, CliError> {
+    let explicit = args.input_format.explicit();
+    if args.fragment_name.is_some() && explicit.is_some_and(|format| format != Format::Towncrier) {
         return Err(CliError::new(
             2,
             reporter.error(
@@ -140,49 +201,71 @@ fn parse_file(args: &ParseArgs, reporter: &Reporter) -> Result<ExitCode, CliErro
         ));
     }
     let input = read_input(&args.file, reporter)?;
+    let name = input_name(&args.file, args.fragment_name.as_deref());
+    let format = explicit.map_or_else(|| detect_input(&input, name, &args.file, reporter), Ok)?;
+    if args.fragment_name.is_some() && format != Format::Towncrier {
+        return Err(CliError::new(
+            2,
+            reporter.error(
+                "fragment-name",
+                "--fragment-name applies only to Towncrier",
+                "Select --input-format towncrier, or omit --fragment-name for a history file.",
+            ),
+        ));
+    }
     let source = SourceText::new(&args.file, &input, format);
-    let name = args.fragment_name.as_deref().or_else(|| {
-        if args.file == Path::new("-") {
-            None
-        } else {
-            args.file.file_name().and_then(|name| name.to_str())
-        }
-    });
     let parsed = name.map_or_else(
         || parse(&input, format),
         |name| parse_named(&input, format, name),
     );
-    let mut changelog =
-        parsed.map_err(|error| CliError::new(1, reporter.parse_error(&error, &source)))?;
-    let diagnostics = validate_for_format(&changelog, format);
+    parsed.map_err(|error| CliError::new(1, reporter.parse_error(&error, &source)))
+}
+
+fn check_document(
+    path: &Path,
+    changelog: &Changelog,
+    reporter: &Reporter,
+) -> Result<ExitCode, CliError> {
+    let source = SourceText::new(path, &changelog.source, changelog.format);
+    let diagnostics = validate(changelog);
     write_diagnostics(&diagnostics, &source, reporter)?;
     if diagnostics
         .iter()
         .any(|diagnostic| diagnostic.severity == Severity::Error)
     {
-        return Ok(ExitCode::from(1));
+        Ok(ExitCode::from(1))
+    } else {
+        Ok(ExitCode::SUCCESS)
     }
-    args.selection.apply(&mut changelog);
-    // Serialize before writing, so a serialization failure cannot produce partial JSON.
-    let result = match args.output_format {
-        OutputFormat::Json => serde_json::to_vec_pretty(&changelog),
-        OutputFormat::JsonCompact => serde_json::to_vec(&changelog),
-    };
-    let mut json = result.map_err(|error| {
+}
+
+fn parse_file(args: &ParseArgs, reporter: &Reporter) -> Result<ExitCode, CliError> {
+    let mut changelog = read_document(&args.input, reporter)?;
+    let status = check_document(&args.input.file, &changelog, reporter)?;
+    if status != ExitCode::SUCCESS {
+        return Ok(status);
+    }
+    args.selection.apply(&mut changelog).map_err(|error| {
+        CliError::new(1, reporter.error(
+            "latest-release", error,
+            "Narrow matches with --package NAME or another filter. Replace --latest with --release VERSION or --first-published when dates cannot identify one release.",
+        ))
+    })?;
+    // Render the whole result before touching stdout or the destination file.
+    let bytes = render::render(&changelog, args.output_format).map_err(|error| {
         CliError::new(
             3,
             reporter.error(
                 "serialization",
-                &format!("cannot serialize changelog: {error}"),
-                "Check that the changelog can be represented as JSON.",
+                &format!("cannot render changelog as {}: {error}", args.output_format.name()),
+                "Check the selected output format and its documented limits in docs/output-formats.md.",
             ),
         )
     })?;
-    json.push(b'\n');
     if let Some(path) = &args.output_file {
-        output::write_file(path, &args.file, &json, reporter)?;
+        output::write_file(path, &args.input.file, &bytes, reporter)?;
     } else {
-        finish_write(io::stdout().lock().write_all(&json), reporter)?;
+        finish_write(io::stdout().lock().write_all(&bytes), reporter)?;
     }
     Ok(ExitCode::SUCCESS)
 }

@@ -94,6 +94,26 @@ pub enum Category {
 }
 
 impl Category {
+    /// Return the normalized display name, preserving custom category names.
+    ///
+    /// ```
+    /// use logloom::Category;
+    /// assert_eq!(Category::Fixed.as_str(), "Fixed");
+    /// assert_eq!(Category::Custom("Performance".into()).as_str(), "Performance");
+    /// ```
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Added => "Added",
+            Self::Changed => "Changed",
+            Self::Deprecated => "Deprecated",
+            Self::Removed => "Removed",
+            Self::Fixed => "Fixed",
+            Self::Security => "Security",
+            Self::Custom(name) => name,
+        }
+    }
+
     pub(crate) fn from_name(name: &str) -> Self {
         match name.to_ascii_lowercase().as_str() {
             "added" => Self::Added,
