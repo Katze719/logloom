@@ -3,10 +3,10 @@
 From the repo root:
 
 ```sh
-cargo run -- parse examples/conventional-changelog.md --format conventional-changelog
+cargo run -- parse examples/conventional-changelog.md --input-format conventional-changelog
 ```
 
-| `--format` | Example files |
+| `--input-format` | Example files |
 | --- | --- |
 | `keep-a-changelog` (default) | [History](keep-a-changelog.md), [component categories](extended-keep-a-changelog.md) |
 | `conventional-changelog` | [Generated Markdown](conventional-changelog.md) |

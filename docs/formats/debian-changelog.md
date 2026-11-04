@@ -3,7 +3,7 @@
 Yes, the spaces matter.
 
 ```sh
-logloom parse examples/debian.changelog --format debian-changelog
+logloom parse examples/debian.changelog --input-format debian-changelog
 ```
 
 ```text

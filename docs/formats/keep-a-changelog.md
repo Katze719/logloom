@@ -75,4 +75,4 @@ versions are fine. Validation is a separate library call; the
   special interpretation. CommonMark is permissive: a lonely delimiter can just be text.
 - Input is limited to 16 MiB and 128 nested Markdown containers, including
   inline formatting. The owned model and JSON serialization use additional memory.
-- No automatic format detection is implemented; use `--format keep-a-changelog`.
+- No automatic format detection is implemented; use `--input-format keep-a-changelog`.

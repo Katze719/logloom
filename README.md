@@ -31,7 +31,8 @@ cargo install --path . --locked
 
 ```sh
 logloom parse CHANGELOG.md
-logloom parse CHANGELOG.md --format conventional-changelog
+logloom parse CHANGELOG.md --input-format conventional-changelog
+logloom parse CHANGELOG.md --latest --category Fixed -o release.json
 cat CHANGELOG.md | logloom parse -
 logloom --help
 ```

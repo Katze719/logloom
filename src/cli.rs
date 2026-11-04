@@ -4,12 +4,17 @@ use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use clap::{CommandFactory, Parser, Subcommand, ValueEnum};
+use clap::{Args, CommandFactory, Parser, Subcommand, ValueEnum};
 use logloom::{
     Diagnostic, Format, MAX_INPUT_BYTES, Severity, parse, parse_named, validate_for_format,
 };
 
 use crate::diagnostics::{ColorMode, Reporter, SourceText};
+
+mod output;
+mod selection;
+
+use selection::Selection;
 
 #[derive(Debug, Parser)]
 #[command(version, about = "Parse existing changelogs into structured JSON")]
@@ -24,19 +29,28 @@ struct Cli {
 #[derive(Debug, Subcommand)]
 enum Command {
     /// Parse a changelog file (or - for standard input).
-    Parse {
-        /// UTF-8 changelog file, or - to read stdin (maximum 16 MiB).
-        file: PathBuf,
-        /// Input changelog format.
-        #[arg(long, value_enum, default_value = "keep-a-changelog")]
-        format: InputFormat,
-        /// Towncrier fragment filename for stdin, e.g. 123.bugfix.rst.
-        #[arg(long)]
-        fragment_name: Option<String>,
-        /// Output format. JSON is pretty-printed and ends with a newline.
-        #[arg(long, value_enum, default_value = "json")]
-        output: OutputFormat,
-    },
+    #[command(disable_version_flag = true)]
+    Parse(ParseArgs),
+}
+
+#[derive(Debug, Args)]
+struct ParseArgs {
+    /// UTF-8 changelog file, or - to read stdin (maximum 16 MiB).
+    file: PathBuf,
+    /// Input changelog format.
+    #[arg(long, value_enum, default_value = "keep-a-changelog")]
+    input_format: InputFormat,
+    /// Towncrier fragment filename for stdin, e.g. 123.bugfix.rst.
+    #[arg(long)]
+    fragment_name: Option<String>,
+    /// Output format. JSON ends with a newline.
+    #[arg(long, value_enum, default_value = "json")]
+    output_format: OutputFormat,
+    /// Write JSON to this file instead of stdout; replaces an existing file.
+    #[arg(short = 'o', long, value_name = "PATH")]
+    output_file: Option<PathBuf>,
+    #[command(flatten)]
+    selection: Selection,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -56,7 +70,10 @@ enum InputFormat {
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum OutputFormat {
+    /// Pretty-printed JSON.
     Json,
+    /// Single-line JSON.
+    JsonCompact,
 }
 
 #[derive(Debug)]
@@ -96,27 +113,12 @@ pub fn run() -> Result<ExitCode, CliError> {
             });
         }
     };
-    let Command::Parse {
-        file,
-        format,
-        fragment_name,
-        output: OutputFormat::Json,
-    } = cli.command;
-    parse_file(
-        &file,
-        format,
-        fragment_name.as_deref(),
-        &Reporter::new(cli.color),
-    )
+    let Command::Parse(args) = cli.command;
+    parse_file(&args, &Reporter::new(cli.color))
 }
 
-fn parse_file(
-    file: &Path,
-    format: InputFormat,
-    fragment_name: Option<&str>,
-    reporter: &Reporter,
-) -> Result<ExitCode, CliError> {
-    let format = match format {
+fn parse_file(args: &ParseArgs, reporter: &Reporter) -> Result<ExitCode, CliError> {
+    let format = match args.input_format {
         InputFormat::KeepAChangelog => Format::KeepAChangelog,
         InputFormat::ConventionalChangelog => Format::ConventionalChangelog,
         InputFormat::GenericMarkdown => Format::GenericMarkdown,
@@ -127,30 +129,30 @@ fn parse_file(
         InputFormat::GnuNews => Format::GnuNews,
         InputFormat::GnuChangeLog => Format::GnuChangeLog,
     };
-    if fragment_name.is_some() && format != Format::Towncrier {
+    if args.fragment_name.is_some() && format != Format::Towncrier {
         return Err(CliError::new(
             2,
             reporter.error(
                 "fragment-name",
                 "--fragment-name applies only to Towncrier",
-                "Use --format towncrier when providing a news-fragment filename.",
+                "Use --input-format towncrier when providing a news-fragment filename.",
             ),
         ));
     }
-    let input = read_input(file, reporter)?;
-    let source = SourceText::new(file, &input, format);
-    let name = fragment_name.or_else(|| {
-        if file == Path::new("-") {
+    let input = read_input(&args.file, reporter)?;
+    let source = SourceText::new(&args.file, &input, format);
+    let name = args.fragment_name.as_deref().or_else(|| {
+        if args.file == Path::new("-") {
             None
         } else {
-            file.file_name().and_then(|name| name.to_str())
+            args.file.file_name().and_then(|name| name.to_str())
         }
     });
     let parsed = name.map_or_else(
         || parse(&input, format),
         |name| parse_named(&input, format, name),
     );
-    let changelog =
+    let mut changelog =
         parsed.map_err(|error| CliError::new(1, reporter.parse_error(&error, &source)))?;
     let diagnostics = validate_for_format(&changelog, format);
     write_diagnostics(&diagnostics, &source, reporter)?;
@@ -160,8 +162,13 @@ fn parse_file(
     {
         return Ok(ExitCode::from(1));
     }
+    args.selection.apply(&mut changelog);
     // Serialize before writing, so a serialization failure cannot produce partial JSON.
-    let mut json = serde_json::to_vec_pretty(&changelog).map_err(|error| {
+    let result = match args.output_format {
+        OutputFormat::Json => serde_json::to_vec_pretty(&changelog),
+        OutputFormat::JsonCompact => serde_json::to_vec(&changelog),
+    };
+    let mut json = result.map_err(|error| {
         CliError::new(
             3,
             reporter.error(
@@ -172,7 +179,11 @@ fn parse_file(
         )
     })?;
     json.push(b'\n');
-    finish_write(io::stdout().lock().write_all(&json), reporter)?;
+    if let Some(path) = &args.output_file {
+        output::write_file(path, &args.file, &json, reporter)?;
+    } else {
+        finish_write(io::stdout().lock().write_all(&json), reporter)?;
+    }
     Ok(ExitCode::SUCCESS)
 }
 

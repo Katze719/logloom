@@ -65,6 +65,10 @@ The model owns its data and supports Serde in both directions. The source copy
 costs some RAM; it keeps comments, whitespace, duplicate definitions, and syntax
 we don't interpret.
 
+[CLI filters](filters.md) narrow `releases` and their sections. `source`,
+`metadata`, and `links` still describe the whole input, so spans keep working.
+The source copy includes unselected releases.
+
 Edit model fields as needed. `source` and spans still describe the original file;
 this isn't a Markdown editor. Run validation after deserializing if you need it.
 Older JSON without `format` defaults to Keep a Changelog. Missing attributes,

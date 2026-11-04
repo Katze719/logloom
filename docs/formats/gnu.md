@@ -5,7 +5,7 @@ Still doing fine with plain text.
 ## NEWS releases
 
 ```sh
-logloom parse examples/gnu-news.txt --format gnu-news
+logloom parse examples/gnu-news.txt --input-format gnu-news
 ```
 
 ```text
@@ -26,7 +26,7 @@ version or date. Annotations like `[stable]` stay in the original heading.
 ## The classic ChangeLog
 
 ```sh
-logloom parse examples/gnu-ChangeLog --format gnu-changelog
+logloom parse examples/gnu-ChangeLog --input-format gnu-changelog
 ```
 
 ```text

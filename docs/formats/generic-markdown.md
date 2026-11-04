@@ -3,7 +3,7 @@
 For the `CHANGELOG.md` with house rules. Here are ours.
 
 ```sh
-logloom parse examples/generic-markdown.md --format generic-markdown
+logloom parse examples/generic-markdown.md --input-format generic-markdown
 ```
 
 ```markdown

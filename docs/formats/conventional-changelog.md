@@ -3,7 +3,7 @@
 Feed it the generated file. The generator already did its thing; logloom reads the result.
 
 ```sh
-logloom parse examples/conventional-changelog.md --format conventional-changelog
+logloom parse examples/conventional-changelog.md --input-format conventional-changelog
 ```
 
 ## Looks like this

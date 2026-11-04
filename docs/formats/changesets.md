@@ -3,7 +3,7 @@
 ## The whole changelog
 
 ```sh
-logloom parse examples/changesets.md --format changesets
+logloom parse examples/changesets.md --input-format changesets
 ```
 
 ```markdown
@@ -23,7 +23,7 @@ thank-yous, and nested dependency lists stay in the entries.
 ## One little YAML sandwich
 
 ```sh
-logloom parse examples/changesets-fragment.md --format changesets
+logloom parse examples/changesets-fragment.md --input-format changesets
 ```
 
 ```markdown

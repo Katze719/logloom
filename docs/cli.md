@@ -4,24 +4,56 @@
 
 ```sh
 logloom parse CHANGELOG.md
-logloom parse CHANGELOG.md --format keep-a-changelog --output json
+logloom parse CHANGELOG.md --input-format keep-a-changelog --output-format json
 ```
 
 Both give you pretty-printed JSON and a final newline. Keep a Changelog is the
-default input. `--output json` is there if you enjoy extra keystrokes; JSON is
-currently the only output. Pick another [input format](formats/README.md) like this:
+default input. `--output-format json` is there if you enjoy extra keystrokes;
+`json-compact` gives you single-line JSON. Pick another
+[input format](formats/README.md) like this:
 
 ```sh
-logloom parse examples/conventional-changelog.md --format conventional-changelog
-logloom parse examples/github-release-notes.json --format github-release-notes
+logloom parse examples/conventional-changelog.md --input-format conventional-changelog
+logloom parse examples/github-release-notes.json --input-format github-release-notes
 ```
+
+`--input-format` selects the reader, `--output-format` selects the result format,
+and `--output-file` chooses where it goes.
+
+## Pick the useful bits
+
+```sh
+logloom --version
+logloom parse CHANGELOG.md --version 2.1.0
+logloom parse CHANGELOG.md --latest --category Fixed
+logloom parse CHANGELOG.md --unreleased --component "Firmware components"
+```
+
+`logloom --version` is the tool version. Under `parse`, `--version` selects a
+release. [Filters](filters.md) covers combinations, packages, and limits.
 
 ## Read stdin or save the result
 
 ```sh
 cat CHANGELOG.md | logloom parse -
 logloom parse CHANGELOG.md > changelog.json
+logloom parse CHANGELOG.md --latest --output-file release.json
+logloom parse CHANGELOG.md --output-format json-compact -o changelog.json
 ```
+
+`--output-file` (`-o`) writes to a file and keeps stdout empty. Existing files
+are replaced only after parsing, full validation, and serialization succeed;
+a failed write leaves the old file intact. Unlike shell redirection, it won't
+truncate your file before logloom has even had a look.
+
+The parent directory must already exist. Using the input path as the output
+(including a symlink to it) is a usage error. An output symlink to another file
+is replaced with a regular file; its target stays untouched. `--output-file -`
+creates a file literally named `-`; omit the option for stdout.
+
+JSON is pretty-printed by default (`--output-format json`). Use
+`--output-format json-compact` for one line, still with a final newline.
+Both work with stdout and file output.
 
 Use UTF-8 and keep the input at or below 16 MiB. That includes stdin.
 Closing a pipe early is fine; the CLI handles it.
@@ -47,8 +79,8 @@ error[invalid-date]: expected a real calendar date in YYYY-MM-DD format
 February 29, 2025 didn't happen. The error comes with a location and a hint for
 the selected format. When there's source text to point at, it'll underline it.
 
-Errors leave stdout empty. All validation findings go to stderr before exit;
-warnings alone still let the JSON through.
+Input errors leave stdout empty and output files untouched. All validation
+findings go to stderr before exit; warnings alone still let the JSON through.
 
 ## Colors
 

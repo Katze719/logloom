@@ -37,9 +37,9 @@ fn default_and_explicit_options_emit_valid_json() {
         vec![
             "parse",
             "tests/fixtures/standard.md",
-            "--output",
+            "--output-format",
             "json",
-            "--format",
+            "--input-format",
             "keep-a-changelog",
         ],
     ] {
@@ -85,8 +85,11 @@ fn usage_errors_exit_two_and_use_stderr() {
     for arguments in [
         vec![],
         vec!["parse"],
-        vec!["parse", "-", "--format", "unknown"],
-        vec!["parse", "-", "--output", "yaml"],
+        vec!["parse", "-", "--format", "keep-a-changelog"],
+        vec!["parse", "-", "--output", "json"],
+        vec!["parse", "-", "--input-format", "unknown"],
+        vec!["parse", "-", "--output-format", "yaml"],
+        vec!["parse", "-", "--compact"],
     ] {
         let output = invoke(&arguments).unwrap();
         assert_eq!(output.status.code(), Some(2));
@@ -143,7 +146,7 @@ fn selected_format_controls_parse_error_help() {
     let output = invoke(&[
         "parse",
         "tests/fixtures/malformed-heading.md",
-        "--format",
+        "--input-format",
         "keep-a-changelog",
         "--color",
         "never",
@@ -195,7 +198,7 @@ fn color_never_and_auto_keep_redirected_diagnostics_plain() {
 #[test]
 fn color_overrides_also_apply_to_usage_errors() {
     for color in ["always", "never"] {
-        let output = invoke(&["parse", "-", "--output", "yaml", "--color", color]).unwrap();
+        let output = invoke(&["parse", "-", "--output-format", "yaml", "--color", color]).unwrap();
         assert_eq!(output.status.code(), Some(2));
         assert_eq!(output.stdout, Vec::<u8>::new());
         assert_eq!(output.stderr.contains(&0x1b), color == "always");
@@ -367,7 +370,8 @@ fn every_format_and_fragment_example_can_be_parsed_from_the_cli() {
         ("gnu-changelog", "examples/gnu-ChangeLog"),
     ];
     for (format, file) in cases {
-        let output = invoke(&["parse", file, "--format", format, "--color", "never"]).unwrap();
+        let output =
+            invoke(&["parse", file, "--input-format", format, "--color", "never"]).unwrap();
         assert!(
             output.status.success(),
             "{file}: {}",
@@ -408,7 +412,7 @@ fn new_formats_use_their_own_error_help_and_never_emit_partial_json() {
     for (format, input, expected_help) in cases {
         let output = stdin_with_arguments(
             input,
-            &["parse", "-", "--format", format, "--color", "never"],
+            &["parse", "-", "--input-format", format, "--color", "never"],
         )
         .unwrap();
         assert_eq!(output.status.code(), Some(1));
@@ -427,7 +431,7 @@ fn towncrier_stdin_uses_explicit_fragment_names_and_allows_empty_misc() {
         &[
             "parse",
             "-",
-            "--format",
+            "--input-format",
             "towncrier",
             "--fragment-name",
             "123.bugfix.rst",
@@ -448,7 +452,7 @@ fn towncrier_stdin_uses_explicit_fragment_names_and_allows_empty_misc() {
         &[
             "parse",
             "-",
-            "--format",
+            "--input-format",
             "towncrier",
             "--fragment-name",
             "123.misc",
@@ -461,7 +465,7 @@ fn towncrier_stdin_uses_explicit_fragment_names_and_allows_empty_misc() {
         &[
             "parse",
             "-",
-            "--format",
+            "--input-format",
             "towncrier",
             "--fragment-name",
             "invalid",
@@ -497,7 +501,7 @@ fn new_format_validation_errors_also_suppress_json() {
     ] {
         let output = stdin_with_arguments(
             input,
-            &["parse", "-", "--format", format, "--color", "always"],
+            &["parse", "-", "--input-format", format, "--color", "always"],
         )
         .unwrap();
         assert_eq!(output.status.code(), Some(1));

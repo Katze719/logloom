@@ -3,8 +3,8 @@
 ## The finished history
 
 ```sh
-logloom parse examples/towncrier.rst --format towncrier
-logloom parse examples/towncrier.md --format towncrier
+logloom parse examples/towncrier.rst --input-format towncrier
+logloom parse examples/towncrier.md --input-format towncrier
 ```
 
 ```rst
@@ -24,8 +24,8 @@ aren't evaluated or rendered.
 ## One fragment
 
 ```sh
-logloom parse examples/towncrier/123.bugfix.rst --format towncrier
-printf 'Fix Unicode paths.\n' | logloom parse - --format towncrier --fragment-name 123.bugfix.rst
+logloom parse examples/towncrier/123.bugfix.rst --input-format towncrier
+printf 'Fix Unicode paths.\n' | logloom parse - --input-format towncrier --fragment-name 123.bugfix.rst
 ```
 
 | Name | Extracted information |

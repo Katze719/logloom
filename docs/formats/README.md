@@ -1,13 +1,13 @@
 # Pick a format
 
-Use `--format` to pick one. The default is Keep a Changelog.
+Use `--input-format` to pick one. The default is Keep a Changelog.
 Format guessing and network fetching aren't implemented, so bring the file.
 
 ```sh
-logloom parse CHANGELOG.md --format conventional-changelog
+logloom parse CHANGELOG.md --input-format conventional-changelog
 ```
 
-| `--format` | What to feed it |
+| `--input-format` | What to feed it |
 | --- | --- |
 | `keep-a-changelog` | [Keep a Changelog Markdown](keep-a-changelog.md), including [component categories](extended-keep-a-changelog.md) |
 | `conventional-changelog` | [Generated Markdown histories](conventional-changelog.md) |

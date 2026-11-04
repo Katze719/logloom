@@ -5,7 +5,7 @@ Bring the saved Markdown or JSON export. logloom stays offline.
 ## Markdown body
 
 ```sh
-logloom parse examples/github-release-notes.md --format github-release-notes
+logloom parse examples/github-release-notes.md --input-format github-release-notes
 ```
 
 ```markdown
@@ -23,7 +23,7 @@ us its release tag, so it gets `version: null` and
 ## JSON export
 
 ```sh
-logloom parse examples/github-release-notes.json --format github-release-notes
+logloom parse examples/github-release-notes.json --input-format github-release-notes
 ```
 
 Use one release object or an array. Array order stays as written:
