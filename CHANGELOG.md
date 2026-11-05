@@ -19,6 +19,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Fix Windows MSI upgrade rules so installer validation passes without
+  suppressing ICE61 checks.
 - Make LF/CRLF regression tests work with Windows Git checkouts without
   introducing extra carriage returns into the test inputs.
 - Report directory inputs consistently on Windows and Linux, with a hint to

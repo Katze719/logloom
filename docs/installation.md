@@ -31,6 +31,9 @@ to the system PATH. Administrator approval is required. Open a fresh terminal:
 logloom --version
 ```
 
+Newer versions upgrade the existing installation. To replace a CI build with
+another build of the same version, uninstall the previous build first.
+
 Or put `logloom.exe` in a directory on your PATH. The C runtime is linked in;
 there's no separate Visual C++ redistributable to install. The executable and MSI
 aren't code-signed.

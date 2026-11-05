@@ -3,8 +3,7 @@
   <Product Id="*" Name="logloom" Language="1033" Version="$(var.Version)"
            Manufacturer="logloom contributors" UpgradeCode="A8A3B838-DA88-4850-B7AC-3FB09230FE46">
     <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine" Platform="x64" />
-    <MajorUpgrade AllowSameVersionUpgrades="yes"
-                  DowngradeErrorMessage="A newer version of logloom is already installed." />
+    <MajorUpgrade DowngradeErrorMessage="A newer version of logloom is already installed." />
     <MediaTemplate EmbedCab="yes" />
     <Property Id="ARPNOMODIFY" Value="1" />
     <Property Id="ARPURLINFOABOUT" Value="https://github.com/Katze719/logloom" />
