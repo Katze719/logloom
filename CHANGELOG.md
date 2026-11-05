@@ -17,6 +17,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Omit the original `source` copy from CLI parse exports in every output format.
 - Document crates.io installation and the published Rust library dependency.
 
+### Fixed
+
+- Report directory inputs consistently on Windows and Linux, with a hint to
+  choose a changelog file instead of a misleading permissions hint.
+
 ## [0.1.0] - 2026-11-04
 
 ### Added

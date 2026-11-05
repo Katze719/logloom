@@ -228,6 +228,36 @@ fn latest_and_io_errors_point_to_the_actual_problem() {
 }
 
 #[test]
+fn directories_have_actionable_errors_for_every_input_command() {
+    let directory = tempfile::tempdir().unwrap();
+    fs::create_dir(directory.path().join("CHANGELOG.md")).unwrap();
+    for command in ["parse", "validate", "detect"] {
+        for explicit_path in [false, true] {
+            let mut invocation = Command::new(env!("CARGO_BIN_EXE_logloom"));
+            invocation
+                .current_dir(directory.path())
+                .args(["--color", "never", command]);
+            if explicit_path {
+                invocation.arg(".");
+            }
+            let output = invocation.output().unwrap();
+            assert_eq!(output.status.code(), Some(3), "{command}");
+            assert_eq!(output.stdout, Vec::<u8>::new(), "{command}");
+            let error = String::from_utf8(output.stderr).unwrap();
+            assert!(error.contains("error[read-input]"), "{command}: {error}");
+            assert!(
+                error.contains("input path is a directory"),
+                "{command}: {error}"
+            );
+            assert!(
+                error.contains("file instead of a directory"),
+                "{command}: {error}"
+            );
+        }
+    }
+}
+
+#[test]
 fn output_dash_uses_stdout_and_dot_dash_can_still_name_a_file() {
     let directory = tempfile::tempdir().unwrap();
     let input = fs::canonicalize("examples/keep-a-changelog.md").unwrap();

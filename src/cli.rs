@@ -340,6 +340,13 @@ fn read_input(path: &Path, reporter: &Reporter) -> Result<String, CliError> {
     let mut bytes = Vec::new();
     let result = if path == Path::new("-") {
         io::stdin().lock().take(limit).read_to_end(&mut bytes)
+    } else if path.is_dir() {
+        // Windows refuses to open directories with PermissionDenied, while
+        // Unix generally reports IsADirectory when reading. Keep the hint uniform.
+        Err(io::Error::new(
+            io::ErrorKind::IsADirectory,
+            "input path is a directory",
+        ))
     } else {
         File::open(path).and_then(|file| file.take(limit).read_to_end(&mut bytes))
     };
