@@ -343,7 +343,8 @@ fn a_closed_output_pipe_is_handled_without_a_panic() {
     assert_eq!(output.stderr, Vec::<u8>::new());
 }
 
-#[cfg(unix)]
+// APFS rejects non-UTF-8 names before the CLI can open them.
+#[cfg(all(unix, not(target_os = "macos")))]
 #[test]
 fn non_utf8_file_names_are_supported() {
     use std::os::unix::ffi::OsStrExt;
@@ -360,6 +361,27 @@ fn non_utf8_file_names_are_supported() {
     std::fs::remove_file(path).unwrap();
     assert!(output.status.success());
     assert_eq!(output.stderr, Vec::<u8>::new());
+}
+
+#[cfg(unix)]
+#[test]
+fn nonexistent_non_utf8_input_paths_report_io_errors_without_panicking() {
+    use std::os::unix::ffi::OsStrExt;
+
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory
+        .path()
+        .join(std::ffi::OsStr::from_bytes(b"missing-\xff.md"));
+    let output = Command::new(env!("CARGO_BIN_EXE_logloom"))
+        .arg("parse")
+        .arg(path)
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(3));
+    assert_eq!(output.stdout, Vec::<u8>::new());
+    let error = String::from_utf8(output.stderr).unwrap();
+    assert!(error.contains("error[read-input]"));
+    assert!(!error.contains("panicked"));
 }
 
 #[test]

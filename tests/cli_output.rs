@@ -242,7 +242,8 @@ fn warnings_stay_on_stderr_and_never_color_the_output_file() {
     assert!(serde_json::from_slice::<Changelog>(&bytes).is_ok());
 }
 
-#[cfg(unix)]
+// APFS cannot persist arbitrary non-UTF-8 filename bytes.
+#[cfg(all(unix, not(target_os = "macos")))]
 #[test]
 fn output_paths_do_not_need_to_be_utf8() {
     use std::ffi::OsString;
@@ -259,4 +260,31 @@ fn output_paths_do_not_need_to_be_utf8() {
         .unwrap();
     assert!(output.status.success());
     assert!(serde_json::from_slice::<Changelog>(&fs::read(destination).unwrap()).is_ok());
+}
+
+#[test]
+fn unicode_input_and_output_paths_work_on_all_platforms() {
+    let directory = tempfile::tempdir().unwrap();
+    let input = directory.path().join("Änderungen-🦀.md");
+    let output_file = directory.path().join("résumé-🦀.json");
+    let original = include_bytes!("fixtures/only-unreleased.md");
+    fs::write(&input, original).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_logloom"))
+        .arg("parse")
+        .arg(&input)
+        .arg("-o")
+        .arg(&output_file)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.stdout, Vec::<u8>::new());
+    assert_eq!(output.stderr, Vec::<u8>::new());
+    let model: Changelog = serde_json::from_slice(&fs::read(output_file).unwrap()).unwrap();
+    assert_eq!(model.releases.len(), 1);
+    assert_eq!(model.releases[0].version, None);
+    assert_eq!(fs::read(input).unwrap(), original);
 }

@@ -26,6 +26,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Preserve fixture bytes across Windows Git checkouts so saved source spans stay
+  valid; account for macOS filesystems rejecting non-UTF-8 filenames in CLI tests.
 - Keep identically named references in separate GitHub release bodies from
   resolving to another release's URL, including filtered text/Markdown exports.
 

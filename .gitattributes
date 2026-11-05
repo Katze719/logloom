@@ -1,0 +1,3 @@
+# Fixtures are byte-exact inputs: checkout must preserve their committed line
+# endings so source spans, JSON contracts, and upstream excerpts stay consistent.
+/tests/fixtures/** -text
