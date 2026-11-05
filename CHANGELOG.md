@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Automatic crates.io publishing through Trusted Publishing for version tags
+  and published GitHub releases, with verified platform assets attached to the
+  release, checksum checks, retry support, and a manual dry run.
+
 ## [0.1.1] - 2026-11-05
 
 ### Added

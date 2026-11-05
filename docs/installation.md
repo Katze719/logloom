@@ -6,21 +6,19 @@ With Rust 1.99 or newer:
 cargo install logloom --locked
 ```
 
-## CI builds
+## Binaries
 
-Open a successful [Rust workflow run](https://github.com/Katze719/logloom/actions/workflows/ci.yml)
-and download the artifact for your machine. GitHub requires a signed-in account
-for artifact downloads. Pushes, pull requests, and manual runs build:
+Download binaries and installers from
+[Releases](https://github.com/Katze719/logloom/releases). No Rust compiler needed.
 
-| Artifact | Files |
+| Platform | Downloads |
 | --- | --- |
-| `logloom-x86_64-pc-windows-msvc` | `logloom.exe`, x64 `.msi` installer |
-| `logloom-x86_64-unknown-linux-musl` | ELF binary, `.tar.gz`, amd64 `.deb`, x86_64 `.rpm` |
-| `logloom-aarch64-unknown-linux-musl` | ELF binary, `.tar.gz`, arm64 `.deb`, aarch64 `.rpm` |
+| Windows x64 | EXE, ZIP, MSI installer |
+| Linux x64 / ARM64 | Standalone ELF, `.tar.gz`, `.deb`, `.rpm` |
 
-Each download includes the MIT license and `SHA256SUMS`. Package versions come
-from `Cargo.toml`. These are builds of that commit; the version alone doesn't
-tell you whether it's a published release.
+For unreleased builds, download artifacts from a successful
+[CI run](https://github.com/Katze719/logloom/actions/workflows/ci.yml).
+GitHub sign-in is required for those downloads.
 
 ## Windows
 
@@ -40,15 +38,13 @@ aren't code-signed.
 
 ## Linux
 
-The Linux binaries are statically linked with musl for their CPU architecture.
-No glibc or musl installation needed. A compatible 64-bit Linux kernel is still
-part of the deal.
+Linux binaries are statically linked with musl. No glibc or musl installation needed.
 
-After extracting the CI artifact, choose one:
+Choose one, using your downloaded version and architecture:
 
 ```sh
-# Standalone binary. Artifact ZIPs don't preserve executable permissions.
-chmod +x logloom
+# Standalone tarball
+tar -xzf logloom-0.1.1-x86_64-unknown-linux-musl.tar.gz
 mkdir -p ~/.local/bin
 install -m 755 logloom ~/.local/bin/logloom
 
@@ -63,12 +59,8 @@ DEB and RPM packages install `/usr/bin/logloom`; remove them with
 `sudo apt remove logloom` or `sudo dnf remove logloom`. The `.tar.gz` keeps the
 executable bit and includes the binary, license, and README.
 
-To check a Linux download before installing:
+To verify downloaded files, also download `SHA256SUMS`:
 
 ```sh
-sha256sum --check SHA256SUMS
+sha256sum --check --ignore-missing SHA256SUMS
 ```
-
-## From a checkout
-
-See [development](development.md#build-and-check) for local builds and checks.

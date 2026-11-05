@@ -2,8 +2,19 @@ name: Rust
 
 on:
   push:
+    branches: ['**']
   pull_request:
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      ref:
+        description: Exact commit to check and package
+        type: string
+        default: ''
+      release-version:
+        description: Release identifier required in CHANGELOG.md
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -13,6 +24,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.99.1
@@ -22,6 +36,13 @@ jobs:
       - run: cargo build --locked --all-features
       - name: Validate project changelog
         run: cargo run --locked --all-features -- validate --strict
+      - name: Check release changelog entry
+        if: inputs.release-version != ''
+        env:
+          RELEASE_VERSION: ${{ inputs.release-version }}
+        run: cargo run --locked --all-features -- validate --strict --release "$RELEASE_VERSION"
+      - name: Test release automation
+        run: bash .github/scripts/test-release.sh
       - run: cargo test --locked --all-features
       - run: cargo test --locked --doc
       - name: Verify crates.io package
@@ -56,6 +77,9 @@ jobs:
       CARGO_PROFILE_RELEASE_STRIP: symbols
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.99.1
@@ -88,6 +112,7 @@ jobs:
           name: logloom-${{ matrix.target }}
           path: target/dist/${{ matrix.target }}/
           if-no-files-found: error
+          overwrite: true
 
   windows-package:
     name: Windows / x86_64-pc-windows-msvc
@@ -97,6 +122,9 @@ jobs:
       RUSTFLAGS: -C target-feature=+crt-static
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.99.1
@@ -115,8 +143,10 @@ jobs:
           name: logloom-windows-installer-logs
           path: ${{ runner.temp }}/logloom-*.log
           if-no-files-found: ignore
+          overwrite: true
       - uses: actions/upload-artifact@v4
         with:
           name: logloom-x86_64-pc-windows-msvc
           path: target/dist/x86_64-pc-windows-msvc/
           if-no-files-found: error
+          overwrite: true

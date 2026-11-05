@@ -1,0 +1,149 @@
+name: Release
+
+on:
+  push:
+    tags: ['v[0-9]*']
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing version tag, e.g. v0.1.2
+        required: true
+        type: string
+      dry-run:
+        description: Build and verify without publishing to crates.io or GitHub Releases
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.tag || github.event.release.tag_name || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.metadata.outputs.version }}
+      tag: ${{ steps.metadata.outputs.tag }}
+      sha: ${{ steps.metadata.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
+      - name: Check tag and package version
+        id: metadata
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.event.release.tag_name || github.ref_name }}
+        run: bash .github/scripts/check-release.sh "$RELEASE_TAG"
+
+  build:
+    needs: prepare
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ needs.prepare.outputs.sha }}
+      release-version: ${{ needs.prepare.outputs.version }}
+
+  publish:
+    needs: [prepare, build]
+    runs-on: ubuntu-24.04
+    environment: crates-io
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify tag has not moved
+        env:
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+        run: bash .github/scripts/check-release.sh "$RELEASE_TAG"
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
+      - name: Build the publishable crate
+        run: cargo package --locked --all-features
+      - name: Check whether this exact crate is already published
+        id: registry
+        if: inputs.dry-run != true
+        env:
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+        run: bash .github/scripts/publish-status.sh
+      - name: Authenticate with crates.io
+        if: inputs.dry-run != true && steps.registry.outputs.publish == 'true'
+        id: auth
+        uses: rust-lang/crates-io-auth-action@v1
+      - name: Publish crate
+        if: inputs.dry-run != true && steps.registry.outputs.publish == 'true'
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+        run: cargo publish --locked --all-features
+      - name: Dry-run publish
+        if: inputs.dry-run == true
+        run: cargo publish --dry-run --locked --all-features
+
+  assets:
+    needs: [prepare, build, publish]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify tag has not moved
+        env:
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+        run: bash .github/scripts/check-release.sh "$RELEASE_TAG"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: logloom-*
+          path: artifacts
+      - name: Verify checksums and assemble release assets
+        env:
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+        run: bash .github/scripts/release-assets.sh artifacts release-assets
+      - name: Export notes from the tagged changelog
+        env:
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          binary=artifacts/logloom-x86_64-unknown-linux-musl/logloom
+          chmod +x "$binary"
+          "$binary" parse --strict --release "$RELEASE_VERSION" \
+            --output-format markdown --output-file release-notes.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: logloom-release-assets-${{ needs.prepare.outputs.version }}
+          path: release-assets/
+          if-no-files-found: error
+          overwrite: true
+      - name: Attach assets and publish GitHub release
+        if: inputs.dry-run != true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --verify-tag --draft \
+              --title "$RELEASE_TAG" --notes-file release-notes.md
+          fi
+          gh release upload "$RELEASE_TAG" release-assets/* --clobber
+          if [ "$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)" = true ]; then
+            gh release edit "$RELEASE_TAG" --draft=false
+          fi

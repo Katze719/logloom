@@ -10,7 +10,7 @@ esac
 
 export LOGLOOM_VERSION
 LOGLOOM_VERSION=$(cargo metadata --locked --no-deps --format-version 1 |
-  python3 -c 'import json, sys; print(json.load(sys.stdin)["packages"][0]["version"])')
+  jq -er '.packages[0].version')
 export LOGLOOM_BINARY="target/$target/release/logloom"
 dist="target/dist/$target"
 work=$(mktemp -d)
