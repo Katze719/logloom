@@ -71,3 +71,29 @@ in the input. Informational notes, such as no matching releases, still exit 0.
 `detect` only identifies signatures. It can name a format even when a release has
 an invalid date or an incomplete heading. Use `validate` to check the document.
 Malformed JSON and size/nesting limits can prevent inspection itself.
+
+## Does this release exist?
+
+```sh
+logloom validate --release 1.2.0
+logloom validate --strict --release 1.2.0
+logloom validate examples/changesets.md --release 2.0.0 --package @lantern/core
+
+if logloom validate --release 1.2.0; then
+  echo "Release is in the changelog."
+fi
+```
+
+`--release` requires one exact identifier. `1.2.0` and `v1.2.0` are different,
+including case; versions don't have to be SemVer. `--package` requires `--release`
+and an exact package name on that same release.
+
+The whole document is parsed and validated first. A valid document containing
+the release exits 0; a missing release or validation failure exits 1. Warnings
+alone allow success unless `--strict` is set. Usage and I/O errors keep exit
+codes 2 and 3. stdout is always empty; diagnostics go to stderr.
+
+Versioned drafts, prereleases, and yanked entries count as present. Unreleased
+sections, unversioned fragments, and GNU date/author records have no release
+identifier to match. `parse --release` still filters exports and succeeds with
+no matches; use `validate --release` when absence should fail a job.

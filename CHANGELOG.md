@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `validate --release VERSION` to require a release to exist, with optional
+  `--package NAME` for package-specific checks and exit codes for CI.
 - CI artifacts for Windows x64: a standalone executable and MSI installer.
 - Static musl binaries, tarballs, DEB packages, and RPM packages for Linux x64
   and ARM64, with SHA-256 checksums and package checks.

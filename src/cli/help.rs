@@ -12,7 +12,7 @@ pub fn parse() -> String {
 
 pub fn validate() -> String {
     format!(
-        "Input formats:\n{}\n\nExamples:\n  logloom validate\n  logloom validate --strict\n  logloom validate other.md --input-format keep-a-changelog",
+        "Input formats:\n{}\n\nExamples:\n  logloom validate\n  logloom validate --strict --release 1.2.0\n  logloom validate --release 2.0.0 --package @lantern/core\n  logloom validate other.md --input-format keep-a-changelog",
         formats::<InputFormat>()
     )
 }

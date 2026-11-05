@@ -51,11 +51,16 @@ logloom parse CHANGELOG.md --unreleased --component "Firmware components"
 ```sh
 logloom detect CHANGELOG.md
 logloom validate CHANGELOG.md --input-format keep-a-changelog
+logloom validate --release 1.2.0
 ```
 
 `detect` prints one format name. `validate` exports nothing: findings go to
 stderr, errors exit 1, and warnings alone exit 0 by default. Both accept `-` for stdin and
 `--fragment-name` for Towncrier. See [detection and validation](detection.md).
+
+`validate --release VERSION` also requires that exact release to exist. A missing
+release exits 1 with a hint on stderr. Add `--package NAME` to check a specific
+package; both values must belong to the same release. stdout stays empty.
 
 For CI, let warnings fail the job too:
 
@@ -140,7 +145,7 @@ A nonempty `NO_COLOR` or `TERM=dumb` also disables auto colors. `always` and
 | Code | What happened |
 | --- | --- |
 | 0 | Success, possibly with warnings unless strict; also help/version |
-| 1 | Parsing, validation, unsupported structure, input-limit error, or validation warnings with `--strict` |
+| 1 | Parsing/validation failure, missing required release, unsupported structure, input-limit error, or warnings with `--strict` |
 | 2 | Invalid command-line arguments |
 | 3 | File, UTF-8 decoding, diagnostic/output I/O, or serialization failure |
 

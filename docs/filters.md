@@ -67,3 +67,6 @@ broken dates or malformed headings.
 JSON, YAML, and TOML retain [original source spans](json.md#where-did-this-come-from),
 but omit the `source` copy. Spans refer to the original input.
 See [output formats](output-formats.md) for what each export includes.
+
+Need to fail when a release is missing? Use
+[`logloom validate --release VERSION`](detection.md#does-this-release-exist).

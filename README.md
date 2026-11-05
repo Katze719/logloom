@@ -36,6 +36,7 @@ standalone Linux x64/ARM64 binaries, plus installers.
 logloom parse
 logloom detect
 logloom validate
+logloom validate --release 0.1.0
 logloom parse CHANGELOG.md --input-format conventional-changelog
 logloom parse CHANGELOG.md --latest --category Fixed -o release.json
 logloom parse CHANGELOG.md --latest --output-format markdown -o release.md

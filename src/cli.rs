@@ -47,7 +47,7 @@ enum Command {
     Parse(ParseArgs),
     /// Check a changelog without exporting it; diagnostics go to stderr.
     #[command(after_help = help::validate())]
-    Validate(InputArgs),
+    Validate(ValidateArgs),
     /// Print the detected input-format name without validating or exporting.
     Detect(DetectArgs),
 }
@@ -83,6 +83,18 @@ struct DetectArgs {
     /// Towncrier filename hint, e.g. 123.bugfix.rst.
     #[arg(long, value_name = "NAME")]
     fragment_name: Option<String>,
+}
+
+#[derive(Debug, Args)]
+struct ValidateArgs {
+    #[command(flatten)]
+    input: InputArgs,
+    /// Also require this exact release identifier to exist.
+    #[arg(long, value_name = "VERSION", help_heading = "Validation", value_parser = clap::builder::NonEmptyStringValueParser::new())]
+    release: Option<String>,
+    /// Require the release to belong to this exact package.
+    #[arg(long, value_name = "NAME", help_heading = "Validation", requires = "release", value_parser = clap::builder::NonEmptyStringValueParser::new())]
+    package: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -163,10 +175,7 @@ pub fn run() -> Result<ExitCode, CliError> {
     let reporter = Reporter::new(cli.color);
     match cli.command {
         Command::Parse(args) => parse_file(&args, &reporter),
-        Command::Validate(args) => {
-            let changelog = read_document(&args, &reporter)?;
-            check_document(&args.file, &changelog, args.strict, &reporter)
-        }
+        Command::Validate(args) => validate_file(&args, &reporter),
         Command::Detect(args) => {
             let input = read_input(&args.file, &reporter)?;
             let name = input_name(&args.file, args.fragment_name.as_deref());
@@ -280,6 +289,44 @@ fn check_document(
     } else {
         Ok(ExitCode::SUCCESS)
     }
+}
+
+fn validate_file(args: &ValidateArgs, reporter: &Reporter) -> Result<ExitCode, CliError> {
+    let changelog = read_document(&args.input, reporter)?;
+    let status = check_document(&args.input.file, &changelog, args.input.strict, reporter)?;
+    if status != ExitCode::SUCCESS {
+        return Ok(status);
+    }
+    if let Some(version) = &args.release
+        && !changelog.releases.iter().any(|release| {
+            release.version.as_ref() == Some(version)
+                && args
+                    .package
+                    .as_ref()
+                    .is_none_or(|package| release.attributes.get("package") == Some(package))
+        })
+    {
+        let scope = args
+            .package
+            .as_ref()
+            .map_or_else(String::new, |package| format!(" for package {package:?}"));
+        return Err(CliError::new(
+            1,
+            reporter.error(
+                "release-not-found",
+                &format!(
+                    "release {version:?}{scope} was not found in {}",
+                    args.input.file.display()
+                ),
+                if args.package.is_some() {
+                    "Check the exact release identifier and package name, including case and any 'v' prefix."
+                } else {
+                    "Use the exact release identifier from the changelog, including case and any 'v' prefix."
+                },
+            ),
+        ));
+    }
+    Ok(ExitCode::SUCCESS)
 }
 
 fn parse_file(args: &ParseArgs, reporter: &Reporter) -> Result<ExitCode, CliError> {
