@@ -6,7 +6,7 @@ Use the [published crate](https://crates.io/crates/logloom) with Rust 1.99 or ne
 
 ```toml
 [dependencies]
-logloom = "0.1.1"
+logloom = "0.1.2"
 serde_json = "1.0"
 ```
 
