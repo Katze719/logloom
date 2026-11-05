@@ -115,23 +115,8 @@ impl Selection {
     }
 
     fn matches_release(&self, release: &Release) -> bool {
-        let draft = release
-            .attributes
-            .get("draft")
-            .is_some_and(|value| value == "true");
-        let dated_record = release
-            .attributes
-            .get("record-kind")
-            .is_some_and(|kind| kind == "dated-change");
-        let unknown = release
-            .attributes
-            .get("version-status")
-            .is_some_and(|status| status == "unknown");
-        let pending = draft || (release.version.is_none() && !dated_record && !unknown);
-        let published = !draft && (release.version.is_some() || dated_record);
-
-        (!(self.latest || self.first_published) || published)
-            && (!self.unreleased || pending)
+        (!(self.latest || self.first_published) || release.is_published())
+            && (!self.unreleased || release.is_pending())
             && (self.versions.is_empty()
                 || release
                     .version
@@ -139,9 +124,8 @@ impl Selection {
                     .is_some_and(|version| self.versions.contains(version)))
             && (self.packages.is_empty()
                 || release
-                    .attributes
-                    .get("package")
-                    .is_some_and(|package| self.packages.contains(package)))
+                    .package()
+                    .is_some_and(|package| self.packages.iter().any(|value| value == package)))
     }
 
     fn matches_section(&self, section: &Section) -> bool {

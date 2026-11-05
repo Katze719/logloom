@@ -1,0 +1,46 @@
+{
+  "format": "keep-a-changelog",
+  "metadata": {
+    "title": "Changelog",
+    "description": ""
+  },
+  "releases": [
+    {
+      "version": null,
+      "date": null,
+      "yanked": false,
+      "heading": "## [Unreleased]",
+      "link": null,
+      "sections": [
+        {
+          "category": {
+            "kind": "added"
+          },
+          "heading": "### Added",
+          "entries": [
+            {
+              "markdown": "- A feature.",
+              "kind": "list_item",
+              "span": {
+                "start": 41,
+                "end": 54,
+                "line": 7
+              }
+            }
+          ],
+          "span": {
+            "start": 30,
+            "end": 40,
+            "line": 5
+          }
+        }
+      ],
+      "span": {
+        "start": 13,
+        "end": 29,
+        "line": 3
+      }
+    }
+  ],
+  "links": []
+}

@@ -7,6 +7,7 @@ use crate::{Category, Changelog, Format};
 /// Importance of a convention diagnostic. Parsing itself has already succeeded.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum Severity {
     /// Accepted but unconventional content.
     Warning,
@@ -41,6 +42,7 @@ pub enum DiagnosticCode {
 
 /// A convention check result with a one-based source line when available.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Diagnostic {
     /// Severity of the finding.
     pub severity: Severity,
@@ -50,6 +52,19 @@ pub struct Diagnostic {
     pub line: Option<usize>,
     /// Human-readable explanation.
     pub message: String,
+}
+
+impl Diagnostic {
+    /// Construct a convention finding without a source location.
+    #[must_use]
+    pub const fn new(severity: Severity, code: DiagnosticCode, message: String) -> Self {
+        Self {
+            severity,
+            code,
+            line: None,
+            message,
+        }
+    }
 }
 
 /// Check the source format's conventions without mutating or sorting content.
@@ -178,7 +193,7 @@ pub fn validate_for_format(changelog: &Changelog, format: Format) -> Vec<Diagnos
     let mut versions = HashSet::new();
     for release in &changelog.releases {
         if let Some(version) = &release.version
-            && !versions.insert((release.attributes.get("package"), version))
+            && !versions.insert((release.package(), version))
         {
             diagnostics.push(Diagnostic {
                 severity: Severity::Error,

@@ -152,3 +152,13 @@ A nonempty `NO_COLOR` or `TERM=dumb` also disables auto colors. `always` and
 `logloom parse --help` groups input, output, and filter options, lists the formats,
 and gives you commands to copy. More examples:
 [JSON examples](json.md) and [formats](formats/README.md).
+
+## Shell completions
+
+```sh
+logloom completions bash > logloom.bash
+source logloom.bash
+```
+
+Also accepts `zsh`, `fish`, `powershell`, and `elvish`. Generated scripts reflect
+the commands and optional exports in your build.

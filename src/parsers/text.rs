@@ -85,6 +85,9 @@ pub fn rebase(
         if let Some(span) = &mut release.date_span {
             shift(span)?;
         }
+        for link in &mut release.links {
+            shift(&mut link.span)?;
+        }
         for section in &mut release.sections {
             shift(&mut section.span)?;
             for entry in &mut section.entries {
@@ -104,6 +107,9 @@ pub fn containing_spans(changelog: &mut Changelog, span: Span) {
         release.span = span;
         if let Some(date_span) = &mut release.date_span {
             *date_span = span;
+        }
+        for link in &mut release.links {
+            link.span = span;
         }
         for section in &mut release.sections {
             section.span = span;

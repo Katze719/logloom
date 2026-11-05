@@ -52,6 +52,7 @@ reStructuredText can use `text`.
 | `sections[].heading`, `.entries` | Optional original heading and ordered entries |
 | `entries[].markdown`, `.kind` | Original content and `list_item`, `markdown`, or `text` |
 | `links` | Effective reference definitions (`label`, `destination`, optional `title`), in source order |
+| `releases[].links` | Body-local reference definitions for independently decoded GitHub notes; omitted when empty |
 
 ## Where did this come from
 
@@ -73,3 +74,4 @@ Edit model fields as needed. Spans and any retained `source` describe the origin
 file; this isn't a Markdown editor. Run validation after deserializing if you need it.
 Older JSON without `format` defaults to Keep a Changelog. Missing attributes,
 component names, and date spans get their empty defaults.
+Missing release-local links default to an empty list. See [compatibility](compatibility.md).

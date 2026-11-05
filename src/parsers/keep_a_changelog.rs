@@ -102,6 +102,7 @@ impl<'a> Document<'a> {
                     sections: Vec::new(),
                     span,
                     attributes: std::collections::BTreeMap::new(),
+                    links: Vec::new(),
                 });
             }
             HeadingLevel::H3 => {

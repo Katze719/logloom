@@ -1,5 +1,7 @@
 //! Release presence checks validate the whole document and stay quiet on stdout.
 
+#![cfg(feature = "cli")]
+
 use std::fs;
 use std::io::{self, Write};
 use std::process::{Command, Output, Stdio};

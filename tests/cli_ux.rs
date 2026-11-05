@@ -1,5 +1,7 @@
 //! User-facing help, actionable diagnostics, and quiet machine-readable output.
 
+#![cfg(feature = "cli")]
+
 use std::fmt::Write as _;
 use std::fs;
 use std::io::{self, Write};
@@ -57,9 +59,12 @@ fn help_groups_options_and_keeps_all_formats_and_examples_discoverable() {
         "gnu-changelog",
         "json",
         "json-compact",
+        #[cfg(feature = "yaml")]
         "yaml",
+        #[cfg(feature = "toml")]
         "toml",
         "jsonl",
+        #[cfg(feature = "csv")]
         "csv",
         "text",
         "markdown",

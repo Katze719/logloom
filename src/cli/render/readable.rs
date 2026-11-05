@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 use std::fmt::Write as _;
 use std::io::{self, Write};
+use std::ops::Range;
 
 use logloom::{Category, Changelog, EntryKind, LinkDefinition, Release};
-use pulldown_cmark::{BrokenLink, CowStr, Event, Options, Parser, Tag, TagEnd};
+use pulldown_cmark::{BrokenLink, CowStr, Event, LinkType, Options, Parser, Tag, TagEnd};
 use unicase::UniCase;
 
 use super::release_label;
@@ -16,6 +17,8 @@ pub fn markdown(changelog: &Changelog, output: &mut impl Write) -> io::Result<()
     )?;
     block(output, &changelog.metadata.description)?;
     for release in &changelog.releases {
+        let local_links = (!release.links.is_empty())
+            .then(|| references(changelog.links.iter().chain(&release.links)));
         write!(output, "## ")?;
         let label = inline(release_label(release));
         if let Some(link) = &release.link {
@@ -60,6 +63,8 @@ pub fn markdown(changelog: &Changelog, output: &mut impl Write) -> io::Result<()
                         "{fence}text\n{}\n{fence}\n",
                         entry.markdown.trim_end_matches(['\r', '\n'])
                     )?;
+                } else if let Some(links) = &local_links {
+                    scoped_block(output, &entry.markdown, links)?;
                 } else {
                     block(output, &entry.markdown)?;
                 }
@@ -100,6 +105,9 @@ pub fn text(changelog: &Changelog, output: &mut impl Write) -> io::Result<()> {
         writeln!(output)?;
     }
     for release in &changelog.releases {
+        let local_links = (!release.links.is_empty())
+            .then(|| references(changelog.links.iter().chain(&release.links)));
+        let release_links = local_links.as_ref().unwrap_or(&links);
         write!(output, "{}", release_label(release))?;
         if let Some(date) = &release.date {
             write!(output, " - {date}")?;
@@ -131,7 +139,7 @@ pub fn text(changelog: &Changelog, output: &mut impl Write) -> io::Result<()> {
                 if entry.kind == EntryKind::Text {
                     writeln!(output, "{}", entry.markdown)?;
                 } else {
-                    plain(&entry.markdown, &links, output)?;
+                    plain(&entry.markdown, release_links, output)?;
                 }
                 writeln!(output)?;
             }
@@ -156,9 +164,9 @@ fn visible_attributes(release: &Release) -> impl Iterator<Item = (&str, &str)> {
 
 type References<'a> = HashMap<UniCase<String>, (&'a str, &'a str)>;
 
-fn references(links: &[LinkDefinition]) -> References<'_> {
+fn references<'a>(links: impl IntoIterator<Item = &'a LinkDefinition>) -> References<'a> {
     links
-        .iter()
+        .into_iter()
         .map(|link| {
             (
                 normalized(&link.label),
@@ -169,6 +177,106 @@ fn references(links: &[LinkDefinition]) -> References<'_> {
             )
         })
         .collect()
+}
+
+// Convert only reference suffixes, using the event stream to leave inline code,
+// escaped brackets, formatting, and nested image/link labels intact. Local
+// definitions cannot be appended to the combined document without collisions.
+fn scoped_block(output: &mut impl Write, value: &str, links: &References<'_>) -> io::Result<()> {
+    let value = value.trim_end_matches(['\r', '\n']);
+    if value.is_empty() {
+        return Ok(());
+    }
+    let callback = |link: BrokenLink<'_>| {
+        links
+            .get(&normalized(&link.reference))
+            .map(|(url, title)| (CowStr::Borrowed(url), CowStr::Borrowed(title)))
+    };
+    let options =
+        Options::ENABLE_TABLES | Options::ENABLE_STRIKETHROUGH | Options::ENABLE_TASKLISTS;
+    let parser = Parser::new_with_broken_link_callback(value, options, Some(callback));
+    let mut edits = Vec::new();
+    for (event, range) in parser.into_offset_iter() {
+        if let Event::Start(
+            Tag::Link {
+                link_type,
+                dest_url,
+                title,
+                ..
+            }
+            | Tag::Image {
+                link_type,
+                dest_url,
+                title,
+                ..
+            },
+        ) = event
+            && let Some(suffix) = reference_suffix(value, range, link_type)?
+        {
+            edits.push((suffix, dest_url, title));
+        }
+    }
+    edits.sort_by_key(|(range, ..)| range.start);
+    let mut cursor = 0;
+    for (range, url, title) in edits {
+        write_range(output, value, cursor..range.start)?;
+        write!(output, "(<{}>", destination(&url))?;
+        if !title.is_empty() {
+            write!(output, " \"{}\"", escaped_title(&title))?;
+        }
+        write!(output, ")")?;
+        cursor = range.end;
+    }
+    write_range(output, value, cursor..value.len())?;
+    writeln!(output, "\n")
+}
+
+fn reference_suffix(
+    value: &str,
+    range: Range<usize>,
+    kind: LinkType,
+) -> io::Result<Option<Range<usize>>> {
+    match kind {
+        LinkType::Shortcut | LinkType::ShortcutUnknown => Ok(Some(range.end..range.end)),
+        LinkType::Collapsed | LinkType::CollapsedUnknown => {
+            let start = range.end.checked_sub(2).ok_or_else(invalid_range)?;
+            Ok(Some(start..range.end))
+        }
+        LinkType::Reference | LinkType::ReferenceUnknown => {
+            let text = value.get(range.clone()).ok_or_else(invalid_range)?;
+            let mut escaped = false;
+            let mut last_open = None;
+            for (index, character) in text.char_indices() {
+                if escaped {
+                    escaped = false;
+                } else if character == '\\' {
+                    escaped = true;
+                } else if character == '[' {
+                    last_open = Some(index);
+                }
+            }
+            let start = last_open
+                .and_then(|offset| range.start.checked_add(offset))
+                .ok_or_else(invalid_range)?;
+            Ok(Some(start..range.end))
+        }
+        _ => Ok(None),
+    }
+}
+
+fn invalid_range() -> io::Error {
+    io::Error::new(io::ErrorKind::InvalidData, "invalid Markdown source range")
+}
+
+fn write_range(output: &mut impl Write, value: &str, range: Range<usize>) -> io::Result<()> {
+    output.write_all(value.get(range).ok_or_else(invalid_range)?.as_bytes())
+}
+
+fn escaped_title(title: &str) -> String {
+    title
+        .replace('\\', "\\\\")
+        .replace('"', "\\\"")
+        .replace(['\r', '\n'], " ")
 }
 
 fn normalized(label: &str) -> UniCase<String> {

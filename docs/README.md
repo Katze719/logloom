@@ -14,5 +14,7 @@ Start with [CLI installation](../README.md#install) or [adding the Rust crate](l
 | The Rust bits | [Library](library.md) |
 | Making jq do the work | [JSON](json.md) |
 | Your particular flavour of changelog | [Formats](formats/README.md) |
+| Stable interfaces and version support | [Compatibility](compatibility.md) |
+| Running checks or measuring performance | [Development](development.md) |
 
 The [examples](../examples/README.md) are real files you can feed to the CLI.

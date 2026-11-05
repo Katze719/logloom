@@ -2,10 +2,11 @@ use std::error::Error;
 use std::io::{self, Write};
 
 use clap::ValueEnum;
-use logloom::{Changelog, Format, LinkDefinition, Metadata, Release};
+use logloom::{Changelog, Format, LinkDefinition, Metadata, Release, ReleaseStatus};
 use serde::Serialize;
 
 mod readable;
+#[cfg(feature = "csv")]
 mod table;
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -17,14 +18,17 @@ pub enum OutputFormat {
     /// Readable text with Markdown styling removed.
     Text,
     /// YAML without the original source copy.
+    #[cfg(feature = "yaml")]
     Yaml,
     /// Markdown of the selected releases.
     Markdown,
     /// TOML without the source copy or absent optional fields.
+    #[cfg(feature = "toml")]
     Toml,
     /// One compact release object per line.
     Jsonl,
     /// A header and one row per entry, including empty groups.
+    #[cfg(feature = "csv")]
     Csv,
 }
 
@@ -34,10 +38,13 @@ impl OutputFormat {
             Self::Json => "json",
             Self::JsonCompact => "json-compact",
             Self::Text => "text",
+            #[cfg(feature = "yaml")]
             Self::Yaml => "yaml",
             Self::Markdown => "markdown",
+            #[cfg(feature = "toml")]
             Self::Toml => "toml",
             Self::Jsonl => "jsonl",
+            #[cfg(feature = "csv")]
             Self::Csv => "csv",
         }
     }
@@ -64,7 +71,9 @@ pub fn render(changelog: &Changelog, format: OutputFormat) -> Result<Vec<u8>, Bo
     match format {
         OutputFormat::Json => serde_json::to_writer_pretty(&mut buffer, &document)?,
         OutputFormat::JsonCompact => serde_json::to_writer(&mut buffer, &document)?,
+        #[cfg(feature = "yaml")]
         OutputFormat::Yaml => yaml_serde::to_writer(&mut buffer, &document)?,
+        #[cfg(feature = "toml")]
         OutputFormat::Toml => buffer.write_all(toml::to_string_pretty(&document)?.as_bytes())?,
         OutputFormat::Jsonl => {
             for release in &changelog.releases {
@@ -72,6 +81,7 @@ pub fn render(changelog: &Changelog, format: OutputFormat) -> Result<Vec<u8>, Bo
                 buffer.write_all(b"\n")?;
             }
         }
+        #[cfg(feature = "csv")]
         OutputFormat::Csv => table::render(changelog, &mut buffer)?,
         OutputFormat::Text => readable::text(changelog, &mut buffer)?,
         OutputFormat::Markdown => readable::markdown(changelog, &mut buffer)?,
@@ -122,26 +132,17 @@ impl Write for Buffer {
 }
 
 fn release_label(release: &Release) -> &str {
-    release.version.as_deref().unwrap_or_else(|| {
-        if release
-            .attributes
-            .get("version-status")
-            .is_some_and(|status| status == "unknown")
-        {
-            "Unversioned"
-        } else if release
-            .attributes
-            .get("record-kind")
-            .is_some_and(|kind| kind == "dated-change")
-        {
-            "Changes"
-        } else {
-            "Unreleased"
-        }
-    })
+    release
+        .version
+        .as_deref()
+        .unwrap_or_else(|| match release.status() {
+            ReleaseStatus::Unversioned => "Unversioned",
+            ReleaseStatus::DatedRecord => "Changes",
+            _ => "Unreleased",
+        })
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "csv"))]
 mod tests {
     use logloom::{Format, parse};
 

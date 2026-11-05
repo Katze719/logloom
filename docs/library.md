@@ -6,7 +6,7 @@ Use the [published crate](https://crates.io/crates/logloom) with Rust 1.99 or ne
 
 ```toml
 [dependencies]
-logloom = "0.1.2"
+logloom = { version = "0.1.2", default-features = false }
 serde_json = "1.0"
 ```
 
@@ -41,6 +41,12 @@ serialization includes it. CLI exports omit this field; reading them back into
 `validate` uses the format stored in the model. A Changesets file won't get
 lectured about missing release dates.
 
+Use `Release::status()`, `is_pending()`, `is_published()`, `package()`, and
+`is_prerelease()` instead of interpreting format attributes yourself.
+Construct editable models with `Changelog::new`, `Release::new`, `Section::new`,
+`Entry::new`, and `Default` for metadata and empty spans. Fields remain mutable;
+the types are non-exhaustive so future fields don't require a breaking release.
+
 ## Named fragments
 
 ```rust
@@ -73,3 +79,8 @@ releases, malformed headings/data, unsupported structure, or a resource limit.
 The CLI adds the colors and source annotations. In Rust you get plain typed errors.
 For every public field, run `cargo doc --no-deps --open`. Otherwise, start with
 the [data model](json.md) or your [format](formats/README.md).
+
+Default features include `cli`, `yaml`, `toml`, and `csv`. Disabling defaults
+keeps the parser and Serde model; `cli` enables JSON, JSONL, text, Markdown, and
+completions. Each optional export feature also enables the CLI.
+See the [compatibility contract](compatibility.md).

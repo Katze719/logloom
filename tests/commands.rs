@@ -1,5 +1,7 @@
 //! Auto mode, format inspection, and validation through the executable.
 
+#![cfg(feature = "cli")]
+
 use std::fs;
 use std::io::{self, Write};
 use std::process::{Command, Output, Stdio};

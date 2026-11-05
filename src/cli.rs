@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use clap::{Args, CommandFactory, Parser, Subcommand, ValueEnum};
+use clap_complete::{Generator, Shell};
 use logloom::{
     Changelog, Diagnostic, Format, MAX_INPUT_BYTES, Severity, detect, detect_named, parse,
     parse_named, validate,
@@ -50,6 +51,12 @@ enum Command {
     Validate(ValidateArgs),
     /// Print the detected input-format name without validating or exporting.
     Detect(DetectArgs),
+    /// Generate a completion script for bash, zsh, fish, powershell, or elvish.
+    Completions {
+        /// Shell whose completion script is written to stdout.
+        #[arg(value_enum)]
+        shell: Shell,
+    },
 }
 
 #[derive(Debug, Args)]
@@ -176,6 +183,15 @@ pub fn run() -> Result<ExitCode, CliError> {
     match cli.command {
         Command::Parse(args) => parse_file(&args, &reporter),
         Command::Validate(args) => validate_file(&args, &reporter),
+        Command::Completions { shell } => {
+            let mut command = Cli::command().bin_name("logloom");
+            command.build();
+            finish_write(
+                shell.try_generate(&command, &mut io::stdout().lock()),
+                &reporter,
+            )?;
+            Ok(ExitCode::SUCCESS)
+        }
         Command::Detect(args) => {
             let input = read_input(&args.file, &reporter)?;
             let name = input_name(&args.file, args.fragment_name.as_deref());
@@ -303,7 +319,7 @@ fn validate_file(args: &ValidateArgs, reporter: &Reporter) -> Result<ExitCode, C
                 && args
                     .package
                     .as_ref()
-                    .is_none_or(|package| release.attributes.get("package") == Some(package))
+                    .is_none_or(|package| release.package() == Some(package.as_str()))
         })
     {
         let scope = args

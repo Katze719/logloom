@@ -1,5 +1,7 @@
 //! Selection is applied to the validated model without changing source offsets.
 
+#![cfg(feature = "cli")]
+
 use std::io::{self, Write};
 use std::process::{Command, Output, Stdio};
 

@@ -1,0 +1,110 @@
+{
+  "format": "github-release-notes",
+  "metadata": {
+    "title": null,
+    "description": ""
+  },
+  "releases": [
+    {
+      "version": "v1",
+      "date": null,
+      "yanked": false,
+      "heading": "v1",
+      "link": null,
+      "sections": [
+        {
+          "category": null,
+          "heading": null,
+          "entries": [
+            {
+              "markdown": "- [One][issue].",
+              "kind": "list_item",
+              "span": {
+                "start": 40,
+                "end": 95,
+                "line": 4
+              }
+            }
+          ],
+          "span": {
+            "start": 40,
+            "end": 95,
+            "line": 4
+          }
+        }
+      ],
+      "span": {
+        "start": 4,
+        "end": 99,
+        "line": 2
+      },
+      "attributes": {
+        "draft": "false",
+        "prerelease": "false"
+      },
+      "links": [
+        {
+          "label": "issue",
+          "destination": "https://example.com/one",
+          "title": null,
+          "span": {
+            "start": 40,
+            "end": 95,
+            "line": 4
+          }
+        }
+      ]
+    },
+    {
+      "version": "v2",
+      "date": null,
+      "yanked": false,
+      "heading": "v2",
+      "link": null,
+      "sections": [
+        {
+          "category": null,
+          "heading": null,
+          "entries": [
+            {
+              "markdown": "- [Two][issue].",
+              "kind": "list_item",
+              "span": {
+                "start": 139,
+                "end": 194,
+                "line": 8
+              }
+            }
+          ],
+          "span": {
+            "start": 139,
+            "end": 194,
+            "line": 8
+          }
+        }
+      ],
+      "span": {
+        "start": 103,
+        "end": 198,
+        "line": 6
+      },
+      "attributes": {
+        "draft": "false",
+        "prerelease": "false"
+      },
+      "links": [
+        {
+          "label": "issue",
+          "destination": "https://example.com/two",
+          "title": null,
+          "span": {
+            "start": 139,
+            "end": 194,
+            "line": 8
+          }
+        }
+      ]
+    }
+  ],
+  "links": []
+}

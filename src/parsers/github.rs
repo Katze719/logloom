@@ -62,7 +62,6 @@ fn json(input: &str) -> Result<Changelog, ParseError> {
     let mut changelog = document(input);
     for raw in items {
         let parsed = json_item(&source, raw)?;
-        changelog.links.extend(parsed.links);
         changelog.releases.extend(parsed.releases);
     }
     Ok(changelog)
@@ -114,6 +113,7 @@ fn json_item(source: &Source<'_>, raw: &RawValue) -> Result<Changelog, ParseErro
         )
     })?;
     current.span = item_span;
+    current.links = std::mem::take(&mut parsed.links);
     current.attributes.remove("version-status");
     current.heading = item.name.unwrap_or_else(|| item.tag_name.clone());
     current.version = Some(item.tag_name);

@@ -209,7 +209,7 @@ impl Reporter {
         };
         let level = match diagnostic.severity {
             Severity::Error => Level::ERROR,
-            Severity::Warning => Level::WARNING,
+            _ => Level::WARNING,
         };
         self.render(
             level,

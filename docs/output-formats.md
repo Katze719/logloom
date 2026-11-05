@@ -40,8 +40,9 @@ logloom parse examples/keep-a-changelog.md --output-format jsonl \
 ```
 
 Each line is a `Release`, including its sections, entries, attributes, and spans.
-There's no outer object or array, and no document metadata, source copy, or link
-definitions. Spans still refer to the original input. No matches means no bytes.
+Body-local reference definitions are included in that release's `links`.
+There's no outer object or array, and no document metadata, source copy, or shared
+link definitions. Spans still refer to the original input. No matches means no bytes.
 
 ## CSV
 
@@ -90,6 +91,8 @@ records use `Changes`, and pending changes use `Unreleased`.
 Markdown keeps entry Markdown and fences plain text/reStructuredText as `text`
 code blocks. Text removes Markdown styling while retaining code, nested lists,
 and link URLs; raw HTML and reStructuredText stay literal.
+Local GitHub-body references become inline Markdown links so equal labels in
+different releases can't change each other's destinations.
 
 These are reading views of the selected releases. They omit the source copy and
 spans and normalize headings rather than reproducing the original file byte for

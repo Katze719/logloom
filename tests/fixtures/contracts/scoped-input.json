@@ -1,0 +1,10 @@
+[
+  {
+    "tag_name": "v1",
+    "body": "- [One][issue].\n\n[issue]: https://example.com/one\n"
+  },
+  {
+    "tag_name": "v2",
+    "body": "- [Two][issue].\n\n[issue]: https://example.com/two\n"
+  }
+]

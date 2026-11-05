@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 /// An owned, serializable changelog independent of its source format.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Changelog {
     /// Source format, retained so validation uses the correct conventions.
     /// Defaults to Keep a Changelog when reading older serialized models.
@@ -13,7 +14,8 @@ pub struct Changelog {
     pub metadata: Metadata,
     /// All releases, including pending releases, in original document order.
     pub releases: Vec<Release>,
-    /// Effective reference-style link definitions in source order.
+    /// Document-wide reference definitions in source order.
+    /// Independently decoded bodies keep their definitions in [`Release::links`].
     pub links: Vec<LinkDefinition>,
     /// Exact input, including whitespace, duplicate definitions, and line endings.
     /// Defaults to empty when deserializing CLI exports, which omit this field.
@@ -23,7 +25,8 @@ pub struct Changelog {
 }
 
 /// Document-level information; arbitrary metadata stays in the introduction.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Metadata {
     /// Plain text of the optional level-one title.
     pub title: Option<String>,
@@ -33,6 +36,7 @@ pub struct Metadata {
 
 /// A release identifier is opaque: neither `SemVer` nor chronological sorting is imposed.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Release {
     /// Opaque identifier; `None` represents pending or unversioned content.
     pub version: Option<String>,
@@ -56,10 +60,138 @@ pub struct Release {
     /// Empty for ordinary Keep a Changelog releases.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub attributes: BTreeMap<String, String>,
+    /// References local to an independently decoded body, overriding document links.
+    /// Empty for formats whose releases share one Markdown document.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub links: Vec<LinkDefinition>,
+}
+
+/// Semantic release state, independent of whether an identifier is present.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum ReleaseStatus {
+    /// Pending changes or a news fragment.
+    Pending,
+    /// An explicitly marked draft, possibly with a version identifier.
+    Draft,
+    /// A versioned, published release; includes prereleases and withdrawn releases.
+    Published,
+    /// A published date/author record without an invented version identifier.
+    DatedRecord,
+    /// Notes whose publication state is unknown.
+    Unversioned,
+}
+
+impl Changelog {
+    /// Create an empty document of the given format, without source text.
+    ///
+    /// ```
+    /// use logloom::{Changelog, Format, Release};
+    /// let mut changelog = Changelog::new(Format::GenericMarkdown);
+    /// changelog.releases.push(Release::new(Some("preview".into())));
+    /// assert_eq!(changelog.releases.len(), 1);
+    /// ```
+    #[must_use]
+    pub fn new(format: crate::Format) -> Self {
+        Self {
+            format,
+            metadata: Metadata::default(),
+            releases: Vec::new(),
+            links: Vec::new(),
+            source: String::new(),
+        }
+    }
+}
+
+impl Release {
+    /// Create a release with no date, content, attributes, or source location.
+    /// A missing identifier starts as pending; attributes can refine its state.
+    #[must_use]
+    pub fn new(version: Option<String>) -> Self {
+        Self {
+            version,
+            date: None,
+            date_span: None,
+            yanked: false,
+            heading: String::new(),
+            link: None,
+            sections: Vec::new(),
+            span: Span::default(),
+            attributes: BTreeMap::new(),
+            links: Vec::new(),
+        }
+    }
+
+    /// Classify this release using its current identifier and format attributes.
+    ///
+    /// ```
+    /// use logloom::{Release, ReleaseStatus};
+    /// let mut release = Release::new(Some("v1".into()));
+    /// assert_eq!(release.status(), ReleaseStatus::Published);
+    /// release.attributes.insert("draft".into(), "true".into());
+    /// assert_eq!(release.status(), ReleaseStatus::Draft);
+    /// ```
+    #[must_use]
+    pub fn status(&self) -> ReleaseStatus {
+        if self
+            .attributes
+            .get("draft")
+            .is_some_and(|value| value == "true")
+        {
+            ReleaseStatus::Draft
+        } else if self
+            .attributes
+            .get("record-kind")
+            .is_some_and(|value| value == "dated-change")
+        {
+            ReleaseStatus::DatedRecord
+        } else if self.version.is_some() {
+            ReleaseStatus::Published
+        } else if self
+            .attributes
+            .get("version-status")
+            .is_some_and(|value| value == "unknown")
+        {
+            ReleaseStatus::Unversioned
+        } else {
+            ReleaseStatus::Pending
+        }
+    }
+
+    /// Whether published selectors should include this release or date/author record.
+    #[must_use]
+    pub fn is_published(&self) -> bool {
+        matches!(
+            self.status(),
+            ReleaseStatus::Published | ReleaseStatus::DatedRecord
+        )
+    }
+
+    /// Whether this release is pending, including explicitly marked drafts.
+    #[must_use]
+    pub fn is_pending(&self) -> bool {
+        matches!(self.status(), ReleaseStatus::Pending | ReleaseStatus::Draft)
+    }
+
+    /// Borrow the format's package name, when present.
+    #[must_use]
+    pub fn package(&self) -> Option<&str> {
+        self.attributes.get("package").map(String::as_str)
+    }
+
+    /// Whether the input explicitly marks this as a prerelease.
+    #[must_use]
+    pub fn is_prerelease(&self) -> bool {
+        self.attributes
+            .get("prerelease")
+            .is_some_and(|value| value == "true")
+    }
 }
 
 /// A group of ordered entries.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Section {
     /// Optional component name shared by this category's entries.
     /// Absent for release-wide categories and older serialized models.
@@ -73,6 +205,20 @@ pub struct Section {
     pub entries: Vec<Entry>,
     /// Source location of the heading, or first entry for an unnamed group.
     pub span: Span,
+}
+
+impl Section {
+    /// Create an empty group without a component, heading, or source location.
+    #[must_use]
+    pub fn new(category: Option<Category>) -> Self {
+        Self {
+            component: None,
+            category,
+            heading: None,
+            entries: Vec::new(),
+            span: Span::default(),
+        }
+    }
 }
 
 /// A normalized category with a lossless fallback for other names.
@@ -132,6 +278,7 @@ impl Category {
 
 /// A top-level list item, Markdown block, or raw text block within a section.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Entry {
     /// Original content, trimmed only at block boundaries; may be Markdown or text.
     /// List markers, nested lists, code, and reference labels are retained.
@@ -140,6 +287,18 @@ pub struct Entry {
     pub kind: EntryKind,
     /// Original source location.
     pub span: Span,
+}
+
+impl Entry {
+    /// Create an entry without a source location; content is kept as supplied.
+    #[must_use]
+    pub fn new(markdown: String, kind: EntryKind) -> Self {
+        Self {
+            markdown,
+            kind,
+            span: Span::default(),
+        }
+    }
 }
 
 /// Structural origin of an entry.
@@ -157,6 +316,7 @@ pub enum EntryKind {
 
 /// One effective `CommonMark` link definition; duplicate definitions remain in `source`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct LinkDefinition {
     /// Reference label as reported by the Markdown parser.
     pub label: String,
@@ -168,8 +328,23 @@ pub struct LinkDefinition {
     pub span: Span,
 }
 
+impl LinkDefinition {
+    /// Create a reference without a title or source location.
+    #[must_use]
+    pub fn new(label: String, destination: String) -> Self {
+        Self {
+            label,
+            destination,
+            title: None,
+            span: Span::default(),
+        }
+    }
+}
+
 /// Half-open UTF-8 byte offsets in the original source, plus a one-based line.
+/// The default is an empty range on line one for newly constructed content.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Span {
     /// Inclusive starting byte offset.
     pub start: usize,
@@ -177,4 +352,19 @@ pub struct Span {
     pub end: usize,
     /// One-based line containing the starting offset.
     pub line: usize,
+}
+
+impl Span {
+    /// Construct original UTF-8 byte offsets and a one-based line.
+    /// Callers must ensure offsets are valid for their source; this performs no I/O.
+    #[must_use]
+    pub const fn new(start: usize, end: usize, line: usize) -> Self {
+        Self { start, end, line }
+    }
+}
+
+impl Default for Span {
+    fn default() -> Self {
+        Self::new(0, 0, 1)
+    }
 }

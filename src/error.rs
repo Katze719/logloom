@@ -20,6 +20,7 @@ pub enum ErrorKind {
 
 /// A structured parsing failure with an optional one-based source line.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct ParseError {
     /// Machine-readable error classification.
     pub kind: ErrorKind,
@@ -30,7 +31,9 @@ pub struct ParseError {
 }
 
 impl ParseError {
-    pub(crate) fn new(kind: ErrorKind, line: Option<usize>, message: impl Into<String>) -> Self {
+    /// Construct a typed failure with an optional one-based input line.
+    #[must_use]
+    pub fn new(kind: ErrorKind, line: Option<usize>, message: impl Into<String>) -> Self {
         Self {
             kind,
             line,

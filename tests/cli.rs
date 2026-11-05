@@ -1,5 +1,7 @@
 //! Black-box tests of the executable, output channels, and exit codes.
 
+#![cfg(feature = "cli")]
+
 use std::io::{self, Write};
 use std::process::{Command, Output, Stdio};
 

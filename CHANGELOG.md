@@ -6,6 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Public model constructors and release status/package queries, with
+  non-exhaustive model types for compatible future extensions.
+- Optional CLI dependencies and individual YAML, TOML, and CSV export features;
+  all existing CLI features remain enabled by default.
+- `completions` for Bash, Zsh, Fish, PowerShell, and Elvish.
+- Property tests, licensed upstream changelog fixtures, saved JSON contracts,
+  parser benchmarks, and macOS/feature-matrix CI checks.
+
+### Changed
+
+- Model structs now use constructors or `Default` instead of external struct
+  literals. Fields remain public and editable. `Severity` is non-exhaustive too.
+- Independently decoded GitHub bodies store their reference definitions in
+  `Release.links`, defaulting to empty when reading older JSON. Shared Markdown
+  references remain in `Changelog.links`.
+
+### Fixed
+
+- Keep identically named references in separate GitHub release bodies from
+  resolving to another release's URL, including filtered text/Markdown exports.
+
 ## [0.1.2] - 2026-11-05
 
 ### Added

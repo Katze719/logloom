@@ -23,7 +23,8 @@ mod validation;
 pub use detection::{DetectionError, detect, detect_named};
 pub use error::{ErrorKind, ParseError};
 pub use model::{
-    Category, Changelog, Entry, EntryKind, LinkDefinition, Metadata, Release, Section, Span,
+    Category, Changelog, Entry, EntryKind, LinkDefinition, Metadata, Release, ReleaseStatus,
+    Section, Span,
 };
 pub use validation::{Diagnostic, DiagnosticCode, Severity, validate, validate_for_format};
 

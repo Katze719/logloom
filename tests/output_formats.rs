@@ -1,5 +1,7 @@
 //! Export contracts, escaping, source fidelity, and output failure behavior.
 
+#![cfg(all(feature = "cli", feature = "yaml", feature = "toml", feature = "csv"))]
+
 use std::collections::BTreeMap;
 use std::fs;
 use std::io::{self, Write};

@@ -35,6 +35,7 @@ pub const fn release(version: Option<String>, heading: String, span: Span) -> Re
         sections: Vec::new(),
         span,
         attributes: std::collections::BTreeMap::new(),
+        links: Vec::new(),
     }
 }
 

@@ -1,5 +1,7 @@
 //! File output must leave the destination intact until the whole result is ready.
 
+#![cfg(feature = "cli")]
+
 use std::fs;
 use std::io::Write;
 use std::process::{Command, Stdio};

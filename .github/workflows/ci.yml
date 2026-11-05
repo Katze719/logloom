@@ -45,6 +45,18 @@ jobs:
         run: bash .github/scripts/test-release.sh
       - run: cargo test --locked --all-features
       - run: cargo test --locked --doc
+      - name: Test the library without CLI dependencies
+        run: |
+          cargo clippy --locked --no-default-features --all-targets -- -D warnings
+          cargo test --locked --no-default-features
+      - name: Test minimal CLI and individual optional exports
+        run: |
+          for features in cli yaml toml csv; do
+            cargo clippy --locked --no-default-features --features "$features" --all-targets -- -D warnings
+            cargo test --locked --no-default-features --features "$features"
+          done
+      - name: Compile parser benchmarks
+        run: cargo bench --locked --no-default-features --bench parser --no-run
       - name: Verify crates.io package
         run: cargo package --locked --all-features
       - name: Run nextest when available
@@ -55,6 +67,20 @@ jobs:
           else
             echo "cargo-nextest is not installed; cargo test ran above."
           fi
+
+  macos-tests:
+    name: macOS
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
+      - run: cargo test --locked --all-features
+      - run: cargo test --locked --no-default-features
 
   linux-packages:
     name: Linux / ${{ matrix.target }}

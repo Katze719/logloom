@@ -1,5 +1,7 @@
 //! Strict validation rejects warnings before filtering, rendering, or file output.
 
+#![cfg(feature = "cli")]
+
 use std::fs;
 use std::io::{self, Write};
 use std::process::{Command, Output, Stdio};
@@ -83,9 +85,12 @@ fn warnings_outside_the_filters_block_every_output_and_preserve_destinations() {
     for format in [
         "json",
         "json-compact",
+        #[cfg(feature = "yaml")]
         "yaml",
+        #[cfg(feature = "toml")]
         "toml",
         "jsonl",
+        #[cfg(feature = "csv")]
         "csv",
         "text",
         "markdown",
