@@ -5,6 +5,7 @@ Start with [CLI installation](../README.md#install) or [adding the Rust crate](l
 
 | Here for… | Go here |
 | --- | --- |
+| Binaries and installers | [Installation](installation.md) |
 | A command to copy | [CLI](cli.md) |
 | Just the changes you need | [Filters](filters.md) |
 | Finding the format or checking a file | [Detection and validation](detection.md) |

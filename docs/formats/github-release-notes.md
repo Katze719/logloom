@@ -46,7 +46,8 @@ Use one release object or an array. Array order stays as written:
 | `draft`, `prerelease` | String attributes; missing flags default to false |
 
 The usual `gh` names work too: `tagName`, `publishedAt`, `url`, `isDraft`, and
-`isPrerelease`. Unknown fields stay in the original JSON `source`.
+`isPrerelease`. The library keeps unknown fields in the original JSON `source`;
+CLI exports omit that copy.
 
 Body spans point at the containing JSON string, since decoding changes the byte
 offsets. `date_span` points at the original timestamp. Release assets stay on

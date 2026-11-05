@@ -6,8 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- CI artifacts for Windows x64: a standalone executable and MSI installer.
+- Static musl binaries, tarballs, DEB packages, and RPM packages for Linux x64
+  and ARM64, with SHA-256 checksums and package checks.
+
 ### Changed
 
+- Omit the original `source` copy from CLI parse exports in every output format.
 - Document crates.io installation and the published Rust library dependency.
 
 ## [0.1.0] - 2026-11-04

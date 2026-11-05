@@ -32,4 +32,5 @@ named `Improvements`. The parser can't read the author's mind; check the layout
 above before using this as a catch-all.
 
 Notes without releases get `version: null` and
-`attributes: {"version-status":"unknown"}`. The exact input stays in `source`.
+`attributes: {"version-status":"unknown"}`. The library retains the exact input
+in `source`; CLI exports omit that copy.

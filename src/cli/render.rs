@@ -2,24 +2,25 @@ use std::error::Error;
 use std::io::{self, Write};
 
 use clap::ValueEnum;
-use logloom::{Changelog, Release};
+use logloom::{Changelog, Format, LinkDefinition, Metadata, Release};
+use serde::Serialize;
 
 mod readable;
 mod table;
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum OutputFormat {
-    /// Pretty-printed JSON of the full model.
+    /// Pretty-printed JSON without the original source copy.
     Json,
-    /// Single-line JSON of the full model.
+    /// Single-line JSON without the original source copy.
     JsonCompact,
     /// Readable text with Markdown styling removed.
     Text,
-    /// YAML of the full model.
+    /// YAML without the original source copy.
     Yaml,
     /// Markdown of the selected releases.
     Markdown,
-    /// TOML of the full model, omitting absent optional fields.
+    /// TOML without the source copy or absent optional fields.
     Toml,
     /// One compact release object per line.
     Jsonl,
@@ -42,13 +43,29 @@ impl OutputFormat {
     }
 }
 
+// Borrow the export fields so diagnostics and readable renderers can still use
+// the intact source without cloning the model or serializing it into a Value.
+#[derive(Serialize)]
+struct Document<'a> {
+    format: Format,
+    metadata: &'a Metadata,
+    releases: &'a [Release],
+    links: &'a [LinkDefinition],
+}
+
 pub fn render(changelog: &Changelog, format: OutputFormat) -> Result<Vec<u8>, Box<dyn Error>> {
     let mut buffer = Buffer::default();
+    let document = Document {
+        format: changelog.format,
+        metadata: &changelog.metadata,
+        releases: &changelog.releases,
+        links: &changelog.links,
+    };
     match format {
-        OutputFormat::Json => serde_json::to_writer_pretty(&mut buffer, changelog)?,
-        OutputFormat::JsonCompact => serde_json::to_writer(&mut buffer, changelog)?,
-        OutputFormat::Yaml => yaml_serde::to_writer(&mut buffer, changelog)?,
-        OutputFormat::Toml => buffer.write_all(toml::to_string_pretty(changelog)?.as_bytes())?,
+        OutputFormat::Json => serde_json::to_writer_pretty(&mut buffer, &document)?,
+        OutputFormat::JsonCompact => serde_json::to_writer(&mut buffer, &document)?,
+        OutputFormat::Yaml => yaml_serde::to_writer(&mut buffer, &document)?,
+        OutputFormat::Toml => buffer.write_all(toml::to_string_pretty(&document)?.as_bytes())?,
         OutputFormat::Jsonl => {
             for release in &changelog.releases {
                 serde_json::to_writer(&mut buffer, release)?;

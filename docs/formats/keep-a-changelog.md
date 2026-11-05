@@ -45,7 +45,7 @@ is fine. Dates are optional, and we keep their text. Nothing gets sorted for you
 | Lists, paragraphs, quotes, code, HTML | Preserved; nested content stays inside its parent block |
 | Emphasis, images, links, tables, tasks, strikethrough | Preserved in entry Markdown |
 | Inline and reference links | Heading URLs and effective reference definitions are extracted; unresolved references stay in Markdown |
-| LF and CRLF | Original line endings remain in `source` |
+| LF and CRLF | Original line endings remain in the library model's `source` |
 
 ## What gets a comment
 
@@ -71,7 +71,7 @@ versions are fine. Validation is a separate library call; the
   en dashes and arbitrary release-heading annotations aren't supported.
 - Headings inside lists, quotes, code, or HTML blocks do not start releases.
   Raw HTML is preserved without rendering or sanitizing.
-- Footnotes, front matter, math, and custom directives stay in `source` without
+- Footnotes, front matter, math, and custom directives stay in the library's `source` without
   special interpretation. CommonMark is permissive: a lonely delimiter can just be text.
 - Input is limited to 16 MiB and 128 nested Markdown containers, including
   inline formatting. The owned model and JSON serialization use additional memory.

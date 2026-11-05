@@ -1,0 +1,23 @@
+# https://nfpm.goreleaser.com/docs/configuration/
+name: logloom
+arch: ${LOGLOOM_ARCH}
+platform: linux
+version: ${LOGLOOM_VERSION}
+release: 1
+maintainer: logloom contributors
+description: Parse changelogs into JSON, Markdown, and other formats
+homepage: https://github.com/Katze719/logloom
+license: MIT
+section: utils
+priority: optional
+contents:
+  - src: ${LOGLOOM_BINARY}
+    dst: /usr/bin/logloom
+    expand: true
+    file_info:
+      mode: 0755
+  - src: LICENSE
+    dst: /usr/share/doc/logloom/copyright
+    type: license
+  - src: README.md
+    dst: /usr/share/doc/logloom/README.md

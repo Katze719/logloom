@@ -4,7 +4,7 @@ use std::fs;
 use std::io::{self, Write};
 use std::process::{Command, Output, Stdio};
 
-use logloom::Changelog;
+use logloom::{Changelog, Format};
 
 fn invoke(arguments: &[&str]) -> io::Result<Output> {
     Command::new(env!("CARGO_BIN_EXE_logloom"))
@@ -222,12 +222,12 @@ fn omitted_file_reads_changelog_in_the_current_directory_and_explicit_paths_over
         );
         assert_eq!(output.stderr, Vec::<u8>::new());
         match command {
-            "parse" => assert_eq!(
-                serde_json::from_slice::<Changelog>(&output.stdout)
-                    .unwrap()
-                    .source,
-                original
-            ),
+            "parse" => {
+                let actual: Changelog = serde_json::from_slice(&output.stdout).unwrap();
+                let mut expected = logloom::parse(original, Format::KeepAChangelog).unwrap();
+                expected.source.clear();
+                assert_eq!(actual, expected);
+            }
             "detect" => assert_eq!(output.stdout, b"keep-a-changelog\n"),
             _ => assert_eq!(output.stdout, Vec::<u8>::new()),
         }

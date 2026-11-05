@@ -49,7 +49,7 @@ fn stdin(input: &str, arguments: &[&str]) -> io::Result<Output> {
 }
 
 #[test]
-fn full_model_formats_round_trip_all_input_families() {
+fn document_formats_round_trip_all_input_families_without_a_source_copy() {
     for (file, input) in [
         ("tests/fixtures/output-rich.md", "keep-a-changelog"),
         ("tests/fixtures/only-unreleased.md", "keep-a-changelog"),
@@ -75,6 +75,7 @@ fn full_model_formats_round_trip_all_input_families() {
             String::from_utf8_lossy(&baseline.stderr)
         );
         let expected: Changelog = serde_json::from_slice(&baseline.stdout).unwrap();
+        assert_eq!(expected.source, "");
         for format in ["json-compact", "yaml", "toml"] {
             let output = invoke(file, input, format, &[]).unwrap();
             assert!(
@@ -96,7 +97,8 @@ fn full_model_formats_round_trip_all_input_families() {
 #[test]
 fn structured_outputs_preserve_crlf_and_quote_ambiguous_yaml_strings() {
     let source = "# Changelog\r\n\r\n## [null] - 2026-10-01\r\n\r\n### Added\r\n\r\n- A Unicode 🦀 entry.\r\n\r\n## [true] - 2026-09-01\r\n";
-    let expected = parse(source, Format::KeepAChangelog).unwrap();
+    let mut expected = parse(source, Format::KeepAChangelog).unwrap();
+    expected.source.clear();
     for format in ["json", "json-compact", "yaml", "toml"] {
         let output = stdin(source, &["--output-format", format]).unwrap();
         assert!(output.status.success());
@@ -106,6 +108,50 @@ fn structured_outputs_preserve_crlf_and_quote_ambiguous_yaml_strings() {
             _ => serde_json::from_slice(&output.stdout).unwrap(),
         };
         assert_eq!(actual, expected);
+    }
+}
+
+#[test]
+fn exports_omit_source_entirely_including_filtered_and_file_output() {
+    let source = "# Changelog\r\n\r\n## [2.0.0] - 2026-10-01\r\n\r\n### Fixed\r\n- Export this fix.\r\n\r\n## [1.0.0] - 2026-09-01\r\n\r\n### Added\r\n- UNSELECTED-SOURCE-ENTRY.\r\n\r\n<!-- PRIVATE-SOURCE-COMMENT -->\r\n";
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("result");
+    for format in FORMATS {
+        let output = stdin(source, &["--release", "2.0.0", "--output-format", format]).unwrap();
+        assert!(output.status.success(), "{format}");
+        let text = std::str::from_utf8(&output.stdout).unwrap();
+        assert!(!text.contains("PRIVATE-SOURCE-COMMENT"), "{format}");
+        assert!(!text.contains("UNSELECTED-SOURCE-ENTRY"), "{format}");
+        let document: Option<serde_json::Value> = match format {
+            "json" | "json-compact" => Some(serde_json::from_str(text).unwrap()),
+            "yaml" => Some(yaml_serde::from_str(text).unwrap()),
+            "toml" => {
+                Some(serde_json::to_value(toml::from_str::<toml::Value>(text).unwrap()).unwrap())
+            }
+            _ => None,
+        };
+        if let Some(document) = document {
+            assert!(document.get("source").is_none(), "{format}");
+            let model: Changelog = serde_json::from_value(document).unwrap();
+            assert_eq!(model.source, "");
+            assert_eq!(model.releases.len(), 1);
+            assert_eq!(model.releases[0].version.as_deref(), Some("2.0.0"));
+        }
+        let output_file = stdin(
+            source,
+            &[
+                "--release",
+                "2.0.0",
+                "--output-format",
+                format,
+                "--output-file",
+                path.to_str().unwrap(),
+            ],
+        )
+        .unwrap();
+        assert!(output_file.status.success(), "{format}");
+        assert_eq!(output_file.stdout, Vec::<u8>::new());
+        assert_eq!(fs::read(&path).unwrap(), output.stdout, "{format}");
     }
 }
 

@@ -34,6 +34,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 Feed `parse` a string; file reading is your call. Then use `validate` to check the
 contents. Parsing will happily retain an impossible date so you can inspect it.
 
+The library retains the exact input in `Changelog.source`, and direct Serde
+serialization includes it. CLI exports omit this field; reading them back into
+`Changelog` gives an empty `source`. Spans always refer to the original input.
+
 `validate` uses the format stored in the model. A Changesets file won't get
 lectured about missing release dates.
 

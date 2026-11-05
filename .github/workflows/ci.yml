@@ -3,6 +3,7 @@ name: Rust
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -31,3 +32,89 @@ jobs:
           else
             echo "cargo-nextest is not installed; cargo test ran above."
           fi
+
+  linux-packages:
+    name: Linux / ${{ matrix.target }}
+    needs: check
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            target: x86_64-unknown-linux-musl
+            nfpm-arch: x86_64
+            nfpm-sha256: 6d7f9a28b2f397934403950fcbba83f598b08d02edbe79a0815b3b4897341750
+          - runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
+            nfpm-arch: arm64
+            nfpm-sha256: a9a75213763783b7669719e505474c748c5ad7dc66591a195619deb50f85c2f4
+    runs-on: ${{ matrix.runner }}
+    env:
+      RUSTFLAGS: -C target-feature=+crt-static -C linker=musl-gcc
+      CARGO_PROFILE_RELEASE_STRIP: symbols
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
+          targets: ${{ matrix.target }}
+      - name: Install musl and package inspection tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y musl-tools binutils rpm cpio
+      - name: Install nFPM 2.48.0
+        env:
+          NFPM_ARCH: ${{ matrix.nfpm-arch }}
+          NFPM_SHA256: ${{ matrix.nfpm-sha256 }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/nfpm"
+          archive="$RUNNER_TEMP/nfpm/nfpm.tar.gz"
+          curl --fail --location --retry 3 \
+            "https://github.com/goreleaser/nfpm/releases/download/v2.48.0/nfpm_2.48.0_Linux_${NFPM_ARCH}.tar.gz" \
+            --output "$archive"
+          echo "$NFPM_SHA256  $archive" | sha256sum --check --strict
+          tar -xzf "$archive" -C "$RUNNER_TEMP/nfpm" nfpm
+          echo "$RUNNER_TEMP/nfpm" >> "$GITHUB_PATH"
+      - name: Test on the target architecture with musl
+        run: cargo test --locked --all-features --target '${{ matrix.target }}'
+      - name: Build standalone binary
+        run: cargo build --locked --release --all-features --bin logloom --target '${{ matrix.target }}'
+      - name: Package and check ELF, DEB, and RPM
+        run: bash .github/scripts/package-linux.sh '${{ matrix.target }}'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: logloom-${{ matrix.target }}
+          path: target/dist/${{ matrix.target }}/
+          if-no-files-found: error
+
+  windows-package:
+    name: Windows / x86_64-pc-windows-msvc
+    needs: check
+    runs-on: windows-2022
+    env:
+      RUSTFLAGS: -C target-feature=+crt-static
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
+          targets: x86_64-pc-windows-msvc
+      - name: Test on Windows x64
+        run: cargo test --locked --all-features --target x86_64-pc-windows-msvc
+      - name: Build standalone executable
+        run: cargo build --locked --release --all-features --bin logloom --target x86_64-pc-windows-msvc
+      - name: Build and test MSI installer
+        shell: pwsh
+        run: ./.github/scripts/package-windows.ps1
+      - name: Upload installer logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logloom-windows-installer-logs
+          path: ${{ runner.temp }}/logloom-*.log
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        with:
+          name: logloom-x86_64-pc-windows-msvc
+          path: target/dist/x86_64-pc-windows-msvc/
+          if-no-files-found: error

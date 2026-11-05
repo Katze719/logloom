@@ -11,10 +11,10 @@ anything goes to stdout or a file. The filename doesn't pick the format for you.
 
 | `--output-format` | What comes out |
 | --- | --- |
-| `json` | Full model, pretty-printed; the default |
+| `json` | Document model without `source`, pretty-printed; the default |
 | `json-compact` | Same model on one line |
-| `yaml` | Full model as YAML |
-| `toml` | Full model as TOML; absent optional values are omitted |
+| `yaml` | Same document model as YAML |
+| `toml` | Same document model as TOML; absent optional values are omitted |
 | `jsonl` | One compact release object per line |
 | `csv` | A header, then one row per entry; empty groups also get rows |
 | `text` | Release headings, attributes, component/category labels, and readable entries |
@@ -24,12 +24,13 @@ Exports keep document order and use UTF-8. Nonempty output ends with a newline.
 The buffered export has a 256 MiB limit; exceeding it is an error (exit 3), with
 stdout empty and an existing output file untouched. Usually a sign to use a filter.
 
-## Full model: JSON, YAML, TOML
+## Document model: JSON, YAML, TOML
 
-Same [fields](json.md#whats-in-there), different punctuation. These formats retain
-the entire original `source`, metadata, links, and source spans, even after
-filtering. TOML has no null, so missing optional values are absent keys.
-All three deserialize back into `Changelog` with Serde.
+Same [fields](json.md#whats-in-there), different punctuation. The original
+`source` field is omitted from CLI exports. Metadata, links, and source spans
+remain, even after filtering; spans refer to the original input file.
+TOML has no null, so missing optional values are absent keys.
+All three deserialize into `Changelog` with Serde; its `source` defaults to empty.
 
 ## JSONL
 

@@ -27,6 +27,9 @@ Install from [crates.io](https://crates.io/crates/logloom) with Rust 1.99 or new
 cargo install logloom --locked
 ```
 
+Prefer a binary? [CI builds](docs/installation.md) include Windows x64 and
+standalone Linux x64/ARM64 binaries, plus installers.
+
 ## Usage
 
 ```sh

@@ -28,6 +28,23 @@ cargo doc --no-deps
 works. CI runs the required checks and uses nextest when it's installed.
 The fixtures include normal changelogs and things a changelog probably shouldn't do.
 
+## CI packages
+
+After the checks pass, CI tests and builds on Windows x64 and Linux x64/ARM64.
+Linux uses native runners with musl and verifies that the ELF has no interpreter
+or shared-library dependencies. Both package payloads must match the built binary.
+Windows links the C runtime statically and tests MSI installation, PATH changes,
+and removal.
+
+The package recipes live in [`.github/packaging/`](../.github/packaging/), with
+scripts in [`.github/scripts/`](../.github/scripts/). nFPM 2.48.0 produces DEB/RPM
+packages; downloads are checked against pinned SHA-256 hashes. Windows uses the
+WiX 3 tools included in `windows-2022`. MSI builds currently require a plain
+`major.minor.patch` version in `Cargo.toml`.
+
+Artifacts and [installation examples](installation.md) are available per workflow
+run. CI uploads artifacts; it doesn't create GitHub releases or publish packages.
+
 ## Where things live
 
 | File | Responsibility |

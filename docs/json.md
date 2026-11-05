@@ -52,24 +52,24 @@ reStructuredText can use `text`.
 | `sections[].heading`, `.entries` | Optional original heading and ordered entries |
 | `entries[].markdown`, `.kind` | Original content and `list_item`, `markdown`, or `text` |
 | `links` | Effective reference definitions (`label`, `destination`, optional `title`), in source order |
-| `source` | Exact input, including comments, whitespace, and original line endings |
 
 ## Where did this come from
 
 Releases, sections, entries, and link definitions have a `span`. `start` and `end`
-count UTF-8 bytes in `source`, with the end excluded. Lines start at 1.
+count UTF-8 bytes in the original input, with the end excluded. Lines start at 1.
 `date_span` points at dates outside headings, like a Debian trailer. Decoded
 GitHub bodies point at their containing JSON token.
 
-The model owns its data and supports Serde in both directions. The source copy
-costs some RAM; it keeps comments, whitespace, duplicate definitions, and syntax
-we don't interpret.
+CLI exports omit the original `source` copy. The library model keeps it,
+including comments, whitespace, duplicate definitions, and original line endings.
+Serializing the library model directly includes `source`; deserializing a CLI
+export defaults it to an empty string.
 
-[CLI filters](filters.md) narrow `releases` and their sections. `source`,
-`metadata`, and `links` still describe the whole input, so spans keep working.
-The source copy includes unselected releases.
+[CLI filters](filters.md) narrow `releases` and their sections. `metadata` and
+`links` still describe the whole input. To look up a span, use the original input
+or the library model's `source`.
 
-Edit model fields as needed. `source` and spans still describe the original file;
-this isn't a Markdown editor. Run validation after deserializing if you need it.
+Edit model fields as needed. Spans and any retained `source` describe the original
+file; this isn't a Markdown editor. Run validation after deserializing if you need it.
 Older JSON without `format` defaults to Keep a Changelog. Missing attributes,
 component names, and date spans get their empty defaults.

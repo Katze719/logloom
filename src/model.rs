@@ -16,6 +16,9 @@ pub struct Changelog {
     /// Effective reference-style link definitions in source order.
     pub links: Vec<LinkDefinition>,
     /// Exact input, including whitespace, duplicate definitions, and line endings.
+    /// Defaults to empty when deserializing CLI exports, which omit this field.
+    /// Spans still refer to the original input when the source copy is absent.
+    #[serde(default)]
     pub source: String,
 }
 

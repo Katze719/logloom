@@ -354,21 +354,20 @@ fn unversioned_dated_records_are_published_but_unknown_notes_are_neither() {
 }
 
 #[test]
-fn filtering_preserves_original_source_links_and_spans_even_without_matches() {
+fn filtering_preserves_links_and_original_spans_without_exporting_source() {
     for version in ["2.0.0", "missing"] {
         let output =
             invoke(&["parse", "tests/fixtures/standard.md", "--release", version]).unwrap();
         assert!(output.status.success());
         let model: Changelog = serde_json::from_slice(&output.stdout).unwrap();
-        assert_eq!(model.source, include_str!("fixtures/standard.md"));
+        assert_eq!(model.source, "");
         assert_ne!(model.links.len(), 0);
         if version == "missing" {
             assert_eq!(model.releases.len(), 0);
         } else {
             let release = &model.releases[0];
             assert!(
-                model
-                    .source
+                include_str!("fixtures/standard.md")
                     .get(release.span.start..release.span.end)
                     .unwrap()
                     .contains("2.0.0")

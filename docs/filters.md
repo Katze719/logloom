@@ -64,5 +64,6 @@ JSONL is empty, CSV keeps its header, and text/Markdown keep the introduction
 and reference links. The entire input is validated first, so filters won't hide
 broken dates or malformed headings.
 
-JSON, YAML, and TOML retain the [original source and spans](json.md#where-did-this-come-from).
+JSON, YAML, and TOML retain [original source spans](json.md#where-did-this-come-from),
+but omit the `source` copy. Spans refer to the original input.
 See [output formats](output-formats.md) for what each export includes.

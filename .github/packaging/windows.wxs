@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*" Name="logloom" Language="1033" Version="$(var.Version)"
+           Manufacturer="logloom contributors" UpgradeCode="A8A3B838-DA88-4850-B7AC-3FB09230FE46">
+    <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine" Platform="x64" />
+    <MajorUpgrade AllowSameVersionUpgrades="yes"
+                  DowngradeErrorMessage="A newer version of logloom is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+    <Property Id="ARPNOMODIFY" Value="1" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/Katze719/logloom" />
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLFOLDER" Name="logloom">
+          <Component Id="LogloomExecutable" Guid="*" Win64="yes">
+            <File Id="LogloomExe" Source="$(var.Binary)" Name="logloom.exe" KeyPath="yes" />
+            <Environment Id="LogloomPath" Name="PATH" Value="[INSTALLFOLDER]"
+                         Action="set" Part="last" System="yes" Permanent="no" />
+          </Component>
+          <Component Id="LogloomLicense" Guid="*" Win64="yes">
+            <File Id="License" Source="LICENSE" KeyPath="yes" />
+          </Component>
+        </Directory>
+      </Directory>
+    </Directory>
+    <Feature Id="MainFeature" Title="logloom" Level="1">
+      <ComponentRef Id="LogloomExecutable" />
+      <ComponentRef Id="LogloomLicense" />
+    </Feature>
+  </Product>
+</Wix>
