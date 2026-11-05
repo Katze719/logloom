@@ -100,7 +100,7 @@ jobs:
           toolchain: 1.99.1
           targets: x86_64-pc-windows-msvc
       - name: Test on Windows x64
-        run: cargo test --locked --all-features --target x86_64-pc-windows-msvc
+        run: cargo test --locked --all-features --no-fail-fast --target x86_64-pc-windows-msvc
       - name: Build standalone executable
         run: cargo build --locked --release --all-features --bin logloom --target x86_64-pc-windows-msvc
       - name: Build and test MSI installer

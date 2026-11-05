@@ -177,7 +177,7 @@ fn empty_component_categories_are_retained_and_empty_names_are_errors() {
 
 #[test]
 fn component_spans_and_names_survive_crlf_and_unicode() {
-    let input = COMPONENTS.replace('\n', "\r\n");
+    let input = COMPONENTS.replace("\r\n", "\n").replace('\n', "\r\n");
     let changelog = parse(&input, Format::KeepAChangelog).unwrap();
     assert_eq!(changelog.source, input);
     assert_eq!(

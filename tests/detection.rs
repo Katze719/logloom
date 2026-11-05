@@ -49,8 +49,12 @@ fn examples_are_detected_from_signatures_across_all_formats() {
             Format::GnuChangeLog,
         ),
     ] {
-        assert_eq!(detect(input).unwrap(), format);
-        assert_eq!(detect(&input.replace('\n', "\r\n")).unwrap(), format);
+        // Git may already have checked the fixtures out with CRLF on Windows.
+        let lf = input.replace("\r\n", "\n");
+        let crlf = lf.replace('\n', "\r\n");
+        for input in [&lf, &crlf] {
+            assert_eq!(detect(input), Ok(format), "{format:?}");
+        }
     }
 }
 

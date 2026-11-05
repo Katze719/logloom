@@ -182,8 +182,9 @@ fn rich_and_nested_markdown_stays_inside_its_entry() {
 
 #[test]
 fn crlf_preserves_meaning_and_source_offsets() {
-    let crlf = STANDARD.replace('\n', "\r\n");
-    let unix = parse(STANDARD, Format::KeepAChangelog).unwrap();
+    let lf = STANDARD.replace("\r\n", "\n");
+    let crlf = lf.replace('\n', "\r\n");
+    let unix = parse(&lf, Format::KeepAChangelog).unwrap();
     let windows = parse(&crlf, Format::KeepAChangelog).unwrap();
     assert_eq!(windows.source, crlf);
     for (left, right) in unix.releases.iter().zip(&windows.releases) {

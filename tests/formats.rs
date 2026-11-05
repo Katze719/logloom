@@ -597,7 +597,7 @@ fn gnu_change_logs_group_by_date_and_author_without_inventing_versions() {
 #[test]
 fn all_formats_preserve_crlf_and_valid_source_spans() {
     for &(format, input) in EXAMPLES {
-        let input = input.replace('\n', "\r\n");
+        let input = input.replace("\r\n", "\n").replace('\n', "\r\n");
         let changelog = parse(&input, format).unwrap();
         assert_eq!(changelog.source, input);
         check_spans(&changelog);
