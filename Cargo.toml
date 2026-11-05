@@ -1,10 +1,28 @@
 [package]
 name = "logloom"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 rust-version = "1.99"
-description = "Parse changelog documents into an ordered, serializable model"
+description = "Parse, validate, and export changelogs with a CLI and Rust library"
 license = "MIT"
+repository = "https://github.com/Katze719/logloom"
+documentation = "https://docs.rs/logloom"
+readme = "README.md"
+keywords = ["changelog", "release-notes", "markdown", "parser", "cli"]
+categories = ["command-line-utilities", "parser-implementations", "development-tools"]
+include = [
+    "/Cargo.toml",
+    "/Cargo.lock",
+    "/LICENSE",
+    "/README.md",
+    "/CHANGELOG.md",
+    "/clippy.toml",
+    "/rust-toolchain.toml",
+    "/src/**",
+    "/tests/**",
+    "/examples/**",
+    "/docs/**",
+]
 
 [dependencies]
 annotate-snippets = "0.12.17"

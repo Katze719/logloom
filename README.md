@@ -36,7 +36,7 @@ standalone Linux x64/ARM64 binaries, plus installers.
 logloom parse
 logloom detect
 logloom validate
-logloom validate --release 0.1.0
+logloom validate --release 0.1.1
 logloom parse CHANGELOG.md --input-format conventional-changelog
 logloom parse CHANGELOG.md --latest --category Fixed -o release.json
 logloom parse CHANGELOG.md --latest --output-format markdown -o release.md
@@ -48,7 +48,8 @@ No file argument? It'll read `CHANGELOG.md` in the current directory.
 The result goes to stdout, complaints go to stderr. JSON is the default.
 If there's an error, stdout stays empty.
 
-Using it from Rust? See the [library guide](docs/library.md).
+Using it from Rust? See the [library guide](docs/library.md) and
+[API reference](https://docs.rs/logloom).
 More examples and the small print live in the [docs](docs/README.md).
 Project changes live in the [changelog](CHANGELOG.md).
 

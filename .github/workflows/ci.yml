@@ -24,6 +24,8 @@ jobs:
         run: cargo run --locked --all-features -- validate --strict
       - run: cargo test --locked --all-features
       - run: cargo test --locked --doc
+      - name: Verify crates.io package
+        run: cargo package --locked --all-features
       - name: Run nextest when available
         shell: bash
         run: |

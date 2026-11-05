@@ -26,6 +26,7 @@ cargo doc --no-deps
 
 `bacon clippy` is handy while editing. `cargo nextest run --all-features` also
 works. CI runs the required checks and uses nextest when it's installed.
+It also builds the packaged crate with `cargo package --locked --all-features`.
 The fixtures include normal changelogs and things a changelog probably shouldn't do.
 
 ## CI packages
@@ -36,14 +37,17 @@ or shared-library dependencies. Both package payloads must match the built binar
 Windows links the C runtime statically and tests MSI installation, PATH changes,
 and removal.
 
-The package recipes live in [`.github/packaging/`](../.github/packaging/), with
-scripts in [`.github/scripts/`](../.github/scripts/). nFPM 2.48.0 produces DEB/RPM
+The package recipes live in [`.github/packaging/`](https://github.com/Katze719/logloom/tree/main/.github/packaging), with
+scripts in [`.github/scripts/`](https://github.com/Katze719/logloom/tree/main/.github/scripts). nFPM 2.48.0 produces DEB/RPM
 packages; downloads are checked against pinned SHA-256 hashes. Windows uses the
 WiX 3 tools included in `windows-2022`. MSI builds currently require a plain
 `major.minor.patch` version in `Cargo.toml`.
 
 Artifacts and [installation examples](installation.md) are available per workflow
 run. CI uploads artifacts; it doesn't create GitHub releases or publish packages.
+
+For crates.io metadata, package contents, and upload checks, see
+[publishing](publishing.md).
 
 ## Where things live
 

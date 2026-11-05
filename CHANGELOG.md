@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-05
+
 ### Added
 
 - `validate --release VERSION` to require a release to exist, with optional
@@ -16,6 +18,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Add crates.io repository/documentation metadata, search keywords, and categories;
+  explicitly select published files to keep CI and local agent instructions out.
 - Omit the original `source` copy from CLI parse exports in every output format.
 - Document crates.io installation and the published Rust library dependency.
 
