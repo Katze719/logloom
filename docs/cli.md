@@ -98,8 +98,16 @@ JSON is pretty-printed by default (`--output-format json`). Use
 All output formats work with stdout and file output. The filename extension
 doesn't select the format.
 
-Use UTF-8 and keep the input at or below 16 MiB. That includes stdin.
-Closing a pipe early is fine; the CLI handles it.
+Input must be UTF-8. The default cap is 16 MiB, including stdin. For a bigger file:
+
+```sh
+logloom parse enormous-changelog.md --yes-i-know-i-am-stupid
+```
+
+`--no-size-limit` is the less dramatic alias. Both work with `parse`, `validate`,
+and `detect`, before or after the subcommand. The whole input stays in memory.
+The 128-container nesting limit, 16 MiB metadata-expansion limits, and 256 MiB
+output limit still apply. Closing a pipe early is fine; the CLI handles it.
 
 ## Diagnostics
 

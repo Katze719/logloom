@@ -41,6 +41,11 @@ serialization includes it. CLI exports omit this field; reading them back into
 `validate` uses the format stored in the model. A Changesets file won't get
 lectured about missing release dates.
 
+For inputs above 16 MiB, use `ParseOptions::without_input_limit().parse(input, format)`.
+The same options expose `parse_named`, `detect`, and `detect_named`.
+`ParseOptions::default()` keeps the cap; `max_input_bytes` accepts a custom byte
+limit or `None`. Nesting and metadata-expansion limits stay in place.
+
 Use `Release::status()`, `is_pending()`, `is_published()`, `package()`, and
 `is_prerelease()` instead of interpreting format attributes yourself.
 Construct editable models with `Changelog::new`, `Release::new`, `Section::new`,

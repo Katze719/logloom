@@ -17,6 +17,7 @@
 mod detection;
 mod error;
 mod model;
+mod options;
 mod parsers;
 mod validation;
 
@@ -26,6 +27,7 @@ pub use model::{
     Category, Changelog, Entry, EntryKind, LinkDefinition, Metadata, Release, ReleaseStatus,
     Section, Span,
 };
+pub use options::ParseOptions;
 pub use validation::{Diagnostic, DiagnosticCode, Severity, validate, validate_for_format};
 
 /// Supported input formats. More formats may be added in future releases.
@@ -74,7 +76,7 @@ impl Format {
     }
 }
 
-/// Maximum UTF-8 input size (16 MiB), enforced before Markdown parsing.
+/// Default UTF-8 input cap (16 MiB); [`ParseOptions`] can override it.
 pub const MAX_INPUT_BYTES: usize = 16_777_216;
 
 /// Parse an in-memory document, retaining its original content and ordering.
@@ -82,13 +84,14 @@ pub const MAX_INPUT_BYTES: usize = 16_777_216;
 /// Dates and other conventions are checked separately by [`validate`]. A missing
 /// title or date is accepted. Release-heading rules depend on the selected format.
 /// Markdown nesting is limited to 128 containers, including inline formatting.
+/// Use [`ParseOptions`] to change the default 16 MiB input cap.
 ///
 /// # Errors
 ///
 /// Returns a [`ParseError`] for empty input, missing releases, malformed release
 /// headings or structured data, unsupported document structure, or resource limits.
 pub fn parse(input: &str, format: Format) -> Result<Changelog, ParseError> {
-    parse_internal(input, format, None)
+    ParseOptions::default().parse(input, format)
 }
 
 /// Parse with an optional source filename's semantic information, without I/O.
@@ -104,21 +107,16 @@ pub fn parse(input: &str, format: Format) -> Result<Changelog, ParseError> {
 /// Returns the same errors as [`parse`], and a malformed-input error for an invalid
 /// Towncrier fragment name. `name` is interpreted as a filename, not opened.
 pub fn parse_named(input: &str, format: Format, name: &str) -> Result<Changelog, ParseError> {
-    parse_internal(input, format, Some(name))
+    ParseOptions::default().parse_named(input, format, name)
 }
 
 fn parse_internal(
     input: &str,
     format: Format,
     name: Option<&str>,
+    options: ParseOptions,
 ) -> Result<Changelog, ParseError> {
-    if input.len() > MAX_INPUT_BYTES {
-        return Err(ParseError::new(
-            ErrorKind::ResourceLimit,
-            None,
-            "input exceeds the 16 MiB limit",
-        ));
-    }
+    options.check_input(input)?;
     if input.trim().is_empty() && !(format == Format::Towncrier && name.is_some()) {
         return Err(ParseError::new(
             ErrorKind::EmptyInput,

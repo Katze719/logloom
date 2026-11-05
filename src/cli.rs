@@ -6,10 +6,7 @@ use std::process::ExitCode;
 
 use clap::{Args, CommandFactory, Parser, Subcommand, ValueEnum};
 use clap_complete::{Generator, Shell};
-use logloom::{
-    Changelog, Diagnostic, Format, MAX_INPUT_BYTES, Severity, detect, detect_named, parse,
-    parse_named, validate,
-};
+use logloom::{Changelog, Diagnostic, Format, ParseOptions, Severity, validate};
 
 use crate::diagnostics::{ColorMode, Reporter, SourceText};
 
@@ -38,6 +35,9 @@ struct Cli {
         hide_possible_values = true
     )]
     color: ColorMode,
+    /// Read inputs larger than 16 MiB. RAM not included.
+    #[arg(long, global = true, visible_alias = "no-size-limit")]
+    yes_i_know_i_am_stupid: bool,
     #[command(subcommand)]
     command: Command,
 }
@@ -62,7 +62,7 @@ enum Command {
 #[derive(Debug, Args)]
 #[command(next_help_heading = "Input")]
 struct InputArgs {
-    /// UTF-8 changelog file, or - to read stdin (maximum 16 MiB).
+    /// UTF-8 changelog file, or - to read stdin (16 MiB by default).
     #[arg(default_value = "CHANGELOG.md")]
     file: PathBuf,
     /// Input format; auto requires a clear match.
@@ -84,7 +84,7 @@ struct InputArgs {
 
 #[derive(Debug, Args)]
 struct DetectArgs {
-    /// UTF-8 changelog file, or - to read stdin (maximum 16 MiB).
+    /// UTF-8 changelog file, or - to read stdin (16 MiB by default).
     #[arg(default_value = "CHANGELOG.md")]
     file: PathBuf,
     /// Towncrier filename hint, e.g. 123.bugfix.rst.
@@ -180,9 +180,14 @@ pub fn run() -> Result<ExitCode, CliError> {
         }
     };
     let reporter = Reporter::new(cli.color);
+    let options = if cli.yes_i_know_i_am_stupid {
+        ParseOptions::without_input_limit()
+    } else {
+        ParseOptions::default()
+    };
     match cli.command {
-        Command::Parse(args) => parse_file(&args, &reporter),
-        Command::Validate(args) => validate_file(&args, &reporter),
+        Command::Parse(args) => parse_file(&args, options, &reporter),
+        Command::Validate(args) => validate_file(&args, options, &reporter),
         Command::Completions { shell } => {
             let mut command = Cli::command().bin_name("logloom");
             command.build();
@@ -193,9 +198,9 @@ pub fn run() -> Result<ExitCode, CliError> {
             Ok(ExitCode::SUCCESS)
         }
         Command::Detect(args) => {
-            let input = read_input(&args.file, &reporter)?;
+            let input = read_input(&args.file, options, &reporter)?;
             let name = input_name(&args.file, args.fragment_name.as_deref());
-            let format = detect_input(&input, name, &args.file, &reporter)?;
+            let format = detect_input(&input, name, &args.file, options, &reporter)?;
             finish_write(
                 writeln!(io::stdout().lock(), "{}", format.as_str()),
                 &reporter,
@@ -236,13 +241,21 @@ fn detect_input(
     input: &str,
     name: Option<&str>,
     path: &Path,
+    options: ParseOptions,
     reporter: &Reporter,
 ) -> Result<Format, CliError> {
-    name.map_or_else(|| detect(input), |name| detect_named(input, name))
-        .map_err(|error| CliError::new(1, reporter.detection_error(&error, path, input)))
+    name.map_or_else(
+        || options.detect(input),
+        |name| options.detect_named(input, name),
+    )
+    .map_err(|error| CliError::new(1, reporter.detection_error(&error, path, input)))
 }
 
-fn read_document(args: &InputArgs, reporter: &Reporter) -> Result<Changelog, CliError> {
+fn read_document(
+    args: &InputArgs,
+    options: ParseOptions,
+    reporter: &Reporter,
+) -> Result<Changelog, CliError> {
     let explicit = args.input_format.explicit();
     if args.fragment_name.is_some() && explicit.is_some_and(|format| format != Format::Towncrier) {
         return Err(CliError::new(
@@ -254,9 +267,12 @@ fn read_document(args: &InputArgs, reporter: &Reporter) -> Result<Changelog, Cli
             ),
         ));
     }
-    let input = read_input(&args.file, reporter)?;
+    let input = read_input(&args.file, options, reporter)?;
     let name = input_name(&args.file, args.fragment_name.as_deref());
-    let format = explicit.map_or_else(|| detect_input(&input, name, &args.file, reporter), Ok)?;
+    let format = explicit.map_or_else(
+        || detect_input(&input, name, &args.file, options, reporter),
+        Ok,
+    )?;
     if args.fragment_name.is_some() && format != Format::Towncrier {
         return Err(CliError::new(
             2,
@@ -269,8 +285,8 @@ fn read_document(args: &InputArgs, reporter: &Reporter) -> Result<Changelog, Cli
     }
     let source = SourceText::new(&args.file, &input, format);
     let parsed = name.map_or_else(
-        || parse(&input, format),
-        |name| parse_named(&input, format, name),
+        || options.parse(&input, format),
+        |name| options.parse_named(&input, format, name),
     );
     parsed.map_err(|error| CliError::new(1, reporter.parse_error(&error, &source)))
 }
@@ -307,8 +323,12 @@ fn check_document(
     }
 }
 
-fn validate_file(args: &ValidateArgs, reporter: &Reporter) -> Result<ExitCode, CliError> {
-    let changelog = read_document(&args.input, reporter)?;
+fn validate_file(
+    args: &ValidateArgs,
+    options: ParseOptions,
+    reporter: &Reporter,
+) -> Result<ExitCode, CliError> {
+    let changelog = read_document(&args.input, options, reporter)?;
     let status = check_document(&args.input.file, &changelog, args.input.strict, reporter)?;
     if status != ExitCode::SUCCESS {
         return Ok(status);
@@ -345,8 +365,12 @@ fn validate_file(args: &ValidateArgs, reporter: &Reporter) -> Result<ExitCode, C
     Ok(ExitCode::SUCCESS)
 }
 
-fn parse_file(args: &ParseArgs, reporter: &Reporter) -> Result<ExitCode, CliError> {
-    let mut changelog = read_document(&args.input, reporter)?;
+fn parse_file(
+    args: &ParseArgs,
+    options: ParseOptions,
+    reporter: &Reporter,
+) -> Result<ExitCode, CliError> {
+    let mut changelog = read_document(&args.input, options, reporter)?;
     let status = check_document(&args.input.file, &changelog, args.input.strict, reporter)?;
     if status != ExitCode::SUCCESS {
         return Ok(status);
@@ -386,23 +410,9 @@ fn parse_file(args: &ParseArgs, reporter: &Reporter) -> Result<ExitCode, CliErro
     Ok(ExitCode::SUCCESS)
 }
 
-fn read_input(path: &Path, reporter: &Reporter) -> Result<String, CliError> {
-    let limit = u64::try_from(MAX_INPUT_BYTES)
-        .ok()
-        .and_then(|value| value.checked_add(1))
-        .ok_or_else(|| {
-            CliError::new(
-                3,
-                reporter.error(
-                    "input-limit",
-                    "input limit is not representable",
-                    "Use a platform supporting the documented 16 MiB input limit.",
-                ),
-            )
-        })?;
-    let mut bytes = Vec::new();
+fn read_input(path: &Path, options: ParseOptions, reporter: &Reporter) -> Result<String, CliError> {
     let result = if path == Path::new("-") {
-        io::stdin().lock().take(limit).read_to_end(&mut bytes)
+        read_bytes(io::stdin().lock(), options.max_input_bytes)
     } else if path.is_dir() {
         // Windows refuses to open directories with PermissionDenied, while
         // Unix generally reports IsADirectory when reading. Keep the hint uniform.
@@ -411,9 +421,9 @@ fn read_input(path: &Path, reporter: &Reporter) -> Result<String, CliError> {
             "input path is a directory",
         ))
     } else {
-        File::open(path).and_then(|file| file.take(limit).read_to_end(&mut bytes))
+        File::open(path).and_then(|file| read_bytes(file, options.max_input_bytes))
     };
-    result.map_err(|error| {
+    let bytes = result.map_err(|error| {
         CliError::new(
             3,
             reporter.error(
@@ -429,13 +439,16 @@ fn read_input(path: &Path, reporter: &Reporter) -> Result<String, CliError> {
             ),
         )
     })?;
-    if bytes.len() > MAX_INPUT_BYTES {
+    if options
+        .max_input_bytes
+        .is_some_and(|limit| bytes.len() > limit)
+    {
         return Err(CliError::new(
             1,
             reporter.error(
                 "resource-limit",
                 &format!("{} exceeds the 16 MiB input limit", path.display()),
-                "Split the changelog into documents of at most 16 MiB each.",
+                "Split the input, or use --yes-i-know-i-am-stupid to read it in full (held in memory).",
             ),
         ));
     }
@@ -449,6 +462,25 @@ fn read_input(path: &Path, reporter: &Reporter) -> Result<String, CliError> {
             ),
         )
     })
+}
+
+fn read_bytes(mut reader: impl Read, max_bytes: Option<usize>) -> io::Result<Vec<u8>> {
+    let mut bytes = Vec::new();
+    if let Some(limit) = max_bytes {
+        let limit = u64::try_from(limit)
+            .ok()
+            .and_then(|value| value.checked_add(1))
+            .ok_or_else(|| {
+                io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "input limit is not representable",
+                )
+            })?;
+        reader.take(limit).read_to_end(&mut bytes)?;
+    } else {
+        reader.read_to_end(&mut bytes)?;
+    }
+    Ok(bytes)
 }
 
 fn write_diagnostics(

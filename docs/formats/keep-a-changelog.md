@@ -73,6 +73,7 @@ versions are fine. Validation is a separate library call; the
   Raw HTML is preserved without rendering or sanitizing.
 - Footnotes, front matter, math, and custom directives stay in the library's `source` without
   special interpretation. CommonMark is permissive: a lonely delimiter can just be text.
-- Input is limited to 16 MiB and 128 nested Markdown containers, including
+- Input defaults to a 16 MiB cap; `--yes-i-know-i-am-stupid` lifts it. The limit of
+  128 nested Markdown containers still applies, including
   inline formatting. The owned model and JSON serialization use additional memory.
 - Use `--input-format keep-a-changelog` to bypass automatic detection.

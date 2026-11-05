@@ -6,7 +6,7 @@ use crate::parsers::{
     histories,
     markdown::{self, Block, Heading},
 };
-use crate::{EntryKind, ErrorKind, Format, MAX_INPUT_BYTES, ParseError, parse};
+use crate::{EntryKind, ErrorKind, Format, ParseError, ParseOptions};
 
 /// A conservative format detector's failure, separate from convention validation.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -76,7 +76,7 @@ impl From<ParseError> for DetectionError {
 /// guessing would be necessary, or [`DetectionError::InvalidInput`] for empty,
 /// oversized, excessively nested, or malformed JSON input.
 pub fn detect(input: &str) -> Result<Format, DetectionError> {
-    detect_internal(input, None)
+    ParseOptions::default().detect(input)
 }
 
 /// Detect with a filename hint for numeric or anonymous Towncrier fragments.
@@ -90,18 +90,15 @@ pub fn detect(input: &str) -> Result<Format, DetectionError> {
 /// Returns the same errors as [`detect`]. An empty named Towncrier fragment can
 /// be identified; parsing still checks whether its type permits an empty body.
 pub fn detect_named(input: &str, name: &str) -> Result<Format, DetectionError> {
-    detect_internal(input, Some(name))
+    ParseOptions::default().detect_named(input, name)
 }
 
-fn detect_internal(input: &str, name: Option<&str>) -> Result<Format, DetectionError> {
-    if input.len() > MAX_INPUT_BYTES {
-        return Err(ParseError::new(
-            ErrorKind::ResourceLimit,
-            None,
-            "input exceeds the 16 MiB limit",
-        )
-        .into());
-    }
+pub fn detect_internal(
+    input: &str,
+    name: Option<&str>,
+    options: ParseOptions,
+) -> Result<Format, DetectionError> {
+    options.check_input(input)?;
     let mut candidates = Vec::new();
     if name.is_some_and(fragment_name) {
         candidates.push(Format::Towncrier);
@@ -139,7 +136,7 @@ fn detect_internal(input: &str, name: Option<&str>) -> Result<Format, DetectionE
         .lines()
         .next()
         .is_some_and(|line| line.trim() == "---")
-        && parse(input, Format::Changesets).is_ok_and(|model| {
+        && options.parse(input, Format::Changesets).is_ok_and(|model| {
             model.releases.iter().any(|release| {
                 release
                     .attributes

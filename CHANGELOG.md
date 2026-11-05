@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `--yes-i-know-i-am-stupid` (alias `--no-size-limit`) to lift the 16 MiB input
+  cap for parsing, validation, and detection, including stdin.
+- `ParseOptions` for library callers that need a custom input cap or no cap.
+  Existing APIs keep their defaults; nesting and metadata-expansion limits remain.
 - Public model constructors and release status/package queries, with
   non-exhaustive model types for compatible future extensions.
 - Optional CLI dependencies and individual YAML, TOML, and CSV export features;

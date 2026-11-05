@@ -1,7 +1,7 @@
 # logloom
 
-Changelogs in. JSON, Markdown, and friends out. A CLI and Rust library for
-Markdown histories, release notes, and news fragments.
+Changelogs in. JSON, Markdown, and friends out.
+A CLI and Rust library for the changelog you've already written.
 
 ## Input formats
 
@@ -40,6 +40,7 @@ logloom validate --release 0.1.2
 logloom parse CHANGELOG.md --input-format conventional-changelog
 logloom parse CHANGELOG.md --latest --category Fixed -o release.json
 logloom parse CHANGELOG.md --latest --output-format markdown -o release.md
+logloom parse enormous-changelog.md --yes-i-know-i-am-stupid
 cat CHANGELOG.md | logloom parse -
 logloom --help
 ```
@@ -47,6 +48,10 @@ logloom --help
 No file argument? It'll read `CHANGELOG.md` in the current directory.
 The result goes to stdout, complaints go to stderr. JSON is the default.
 If there's an error, stdout stays empty.
+
+Release names stay as written. If your next version is called `spring-cleaning`,
+that's fine. `--latest` goes by release date.
+Inputs stop at 16 MiB by default; the long flag above lifts that cap.
 
 Using it from Rust? See the [library guide](docs/library.md) and
 [API reference](https://docs.rs/logloom).

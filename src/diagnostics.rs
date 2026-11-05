@@ -108,7 +108,7 @@ impl Reporter {
             DetectionError::InvalidInput(error) if error.kind == ErrorKind::ResourceLimit => (
                 "resource-limit",
                 error.line,
-                "Keep input at or below 16 MiB and reduce Markdown nesting to at most 128 containers.",
+                "Use --yes-i-know-i-am-stupid for larger input. Markdown nesting still has a limit of 128 containers.",
             ),
             DetectionError::InvalidInput(error) if error.kind == ErrorKind::EmptyInput => (
                 "empty-input",
@@ -178,7 +178,7 @@ impl Reporter {
         let (id, help) = match error.kind {
             ErrorKind::ResourceLimit => (
                 "resource-limit",
-                "Keep input and expanded repeated metadata at or below 16 MiB, and Markdown nesting at or below 128 containers.",
+                "Use --yes-i-know-i-am-stupid for input size. Expanded repeated metadata stays capped at 16 MiB; Markdown nesting stays capped at 128 containers.",
             ),
             ErrorKind::EmptyInput if source.format == Format::Towncrier => (
                 "empty-input",

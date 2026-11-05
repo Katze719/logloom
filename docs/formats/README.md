@@ -19,8 +19,9 @@ logloom parse CHANGELOG.md --input-format conventional-changelog
 | `debian-changelog` | [Debian package records](debian-changelog.md) |
 | `gnu-news`, `gnu-changelog` | [GNU release notes and date/author records](gnu.md) |
 
-The original text and order stay intact. Files can be up to 16 MiB, with at most
-128 nested Markdown containers. That's already quite a few blockquotes.
+The original text and order stay intact. The default input cap is 16 MiB;
+`--yes-i-know-i-am-stupid` (alias `--no-size-limit`) lifts it. Markdown still
+allows at most 128 nested containers. That's already quite a few blockquotes.
 
 Changeset summaries copied across packages and component names repeated across
 sections each have a 16 MiB expansion limit. Pass individual documents or
