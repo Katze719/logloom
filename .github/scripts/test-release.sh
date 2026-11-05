@@ -32,6 +32,17 @@ git commit --quiet --allow-empty -m Second
 expect_failure env RELEASE_VERSION=0.1.2 bash "$scripts/check-release.sh" v0.1.2
 grep -q 'no longer points' "$work/error"
 
+# A stable major release must pass the same metadata/tag checks as 0.x.
+printf '[package]\nname="logloom"\nversion="1.0.0"\nedition="2024"\n' > Cargo.toml
+cargo generate-lockfile --offline --quiet
+git add Cargo.toml Cargo.lock
+git commit --quiet -m 'Stable release'
+git tag -a v1.0.0 -m Release
+: > "$work/outputs"
+env -u RELEASE_VERSION GITHUB_OUTPUT="$work/outputs" bash "$scripts/check-release.sh" v1.0.0
+grep -Fxq 'version=1.0.0' "$work/outputs"
+grep -Fxq 'tag=v1.0.0' "$work/outputs"
+
 # Check duplicate publishing and registry errors without network access.
 mkdir -p "$work/bin" target/package
 cat > "$work/bin/curl" <<'CURL'

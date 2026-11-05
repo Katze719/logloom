@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-05
+
 ### Added
 
 - `--yes-i-know-i-am-stupid` (alias `--no-size-limit`) to lift the 16 MiB input
@@ -22,6 +24,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Define the Rust API, JSON, and CLI compatibility contract for the 1.x series.
 - Model structs now use constructors or `Default` instead of external struct
   literals. Fields remain public and editable. `Severity` is non-exhaustive too.
 - Independently decoded GitHub bodies store their reference definitions in

@@ -1,7 +1,7 @@
 # Compatibility
 
-From 1.0, these rules apply throughout 1.x. Before 1.0, model changes are listed
-in the [changelog](../CHANGELOG.md).
+These rules apply throughout 1.x. Changes are listed in the
+[changelog](../CHANGELOG.md).
 
 | Surface | Contract |
 | --- | --- |
