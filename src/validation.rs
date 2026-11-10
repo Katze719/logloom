@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Category, Changelog, Format};
+use crate::{Category, Changelog, EntryKind, Format};
 
 /// Importance of a convention diagnostic. Parsing itself has already succeeded.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -69,7 +69,9 @@ impl Diagnostic {
 
 /// Check the source format's conventions without mutating or sorting content.
 ///
-/// Empty releases and categories are accepted. Version identifiers are opaque.
+/// Empty releases and categories are accepted. Component introductions consisting
+/// of Markdown blocks are accepted; uncategorized list items still warn.
+/// Version identifiers are opaque.
 /// Dates use four-digit years 0001–9999 and the Gregorian calendar. Unknown
 /// categories, missing dates, and unusual ordering produce Keep a Changelog warnings; invalid
 /// dates and duplicate identifiers produce errors. This checks the unified
@@ -164,12 +166,17 @@ fn validate_keep_a_changelog(changelog: &Changelog) -> Vec<Diagnostic> {
                     Some(section.span.line),
                     "category is outside the standard vocabulary",
                 ),
-                None if !section.entries.is_empty() => report(
-                    Severity::Warning,
-                    DiagnosticCode::UncategorizedContent,
-                    Some(section.span.line),
-                    "content appears outside a named category",
-                ),
+                None if section.entries.iter().any(|entry| {
+                    section.component.is_none() || entry.kind != EntryKind::Markdown
+                }) =>
+                {
+                    report(
+                        Severity::Warning,
+                        DiagnosticCode::UncategorizedContent,
+                        Some(section.span.line),
+                        "content appears outside a named category",
+                    );
+                }
                 _ => {}
             }
         }

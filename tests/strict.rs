@@ -79,6 +79,33 @@ fn strict_accepts_clean_inputs_and_uses_each_formats_own_conventions() {
 }
 
 #[test]
+fn strict_accepts_component_and_category_descriptions() {
+    let input = "# Changelog\n\n## [Unreleased]\n\n### Firmware\n\nFirmware description.\n\n#### Changed\n\nCategory description.\n\n- Update the firmware.\n\n### Build tools\n\nBuild tools description.\n\n#### Fixed\n\n- Fix the build.\n";
+    for command in ["parse", "validate"] {
+        let output = stdin(input, &[command, "-", "--strict"]).unwrap();
+        assert!(
+            output.status.success(),
+            "{command}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(output.stderr, Vec::<u8>::new());
+        if command == "parse" {
+            let changelog: Changelog = serde_json::from_slice(&output.stdout).unwrap();
+            assert_eq!(
+                changelog.releases[0].sections[0].entries[0].markdown,
+                "Firmware description."
+            );
+            assert_eq!(
+                changelog.releases[0].sections[1].entries[0].markdown,
+                "Category description."
+            );
+        } else {
+            assert_eq!(output.stdout, Vec::<u8>::new());
+        }
+    }
+}
+
+#[test]
 fn warnings_outside_the_filters_block_every_output_and_preserve_destinations() {
     let directory = tempfile::tempdir().unwrap();
     let destination = directory.path().join("result");

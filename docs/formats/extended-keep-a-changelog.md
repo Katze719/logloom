@@ -10,16 +10,20 @@ cargo run -- parse examples/extended-keep-a-changelog.md
 ```markdown
 ## [1.0.0] - 2026-08-01
 ### Firmware components
+
+Changes affecting the generated firmware images.
+
 #### Added
 - A new driver.
 #### Changed
 - Update the firmware API.
 ```
 
-Each category gets its component name. Pick those two fields from the result:
+Each section gets its component name. The introduction has no category:
 
 ```json
 [
+  {"component":"Firmware components","category":null},
   {"component":"Firmware components","category":{"kind":"added"}},
   {"component":"Firmware components","category":{"kind":"changed"}}
 ]
@@ -33,8 +37,10 @@ Each category gets its component name. Pick those two fields from the result:
   A custom H3 without H4 remains a custom category. Standard names ignore ASCII case.
 - Sections stay in source order, including repeated components and categories.
   New H3 or release headings reset the component context.
-- Prose before a component's first category is retained as an uncategorized
-  section with the same component. Empty categories are retained.
+- Introductory Markdown before a component's first category is accepted without
+  warnings and retained as an uncategorized section with the same component.
+  List items there still warn: place changes under a category. Descriptions
+  inside categories are also accepted. Empty categories are retained.
 - H5/H6 subheadings remain Markdown entries. This extension has one component
   level; nested component trees are not inferred. Headings inside lists, quotes,
   and code do not affect the grouping.

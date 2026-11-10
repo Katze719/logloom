@@ -108,10 +108,43 @@ fn component_prose_before_its_first_category_is_preserved() {
     assert_eq!(sections[0].category, None);
     assert_eq!(sections[0].entries[0].markdown, "Component introduction.");
     assert_eq!(sections[1].category, Some(Category::Added));
-    assert_eq!(
-        validate(&changelog)[0].code,
-        DiagnosticCode::UncategorizedContent
-    );
+    assert_eq!(validate(&changelog), Vec::new());
+}
+
+#[test]
+fn component_descriptions_accept_multiple_markdown_blocks_and_category_descriptions() {
+    let input = "# Changelog\n## Unreleased\n### Firmware\nFirst paragraph with **emphasis**.\n\nSecond paragraph.\n\n> Applies to production images.\n\n#### Added\nCategory description.\n\n- A driver.\n### Build tools\nBuild-time changes only.\n\n#### Fixed\n- A build fix.\n### Firmware\nAnother component introduction.\n\n#### Changed\n- An API update.\n";
+    let changelog = parse(input, Format::KeepAChangelog).unwrap();
+    let sections = &changelog.releases[0].sections;
+    assert_eq!(sections.len(), 6);
+    assert_eq!(sections[0].entries.len(), 3);
+    assert_eq!(sections[1].entries[0].markdown, "Category description.");
+    assert_eq!(sections[2].component.as_deref(), Some("Build tools"));
+    assert_eq!(sections[4].component.as_deref(), Some("Firmware"));
+    assert_eq!(validate(&changelog), Vec::new());
+}
+
+#[test]
+fn uncategorized_component_lists_and_release_prose_still_warn() {
+    for body in [
+        "- An uncategorized change.\n",
+        "1. An uncategorized change.\n",
+    ] {
+        let input = format!(
+            "# Changelog\n## Unreleased\n### Firmware\nComponent description.\n\n{body}\n#### Added\n- A driver.\n"
+        );
+        let changelog = parse(&input, Format::KeepAChangelog).unwrap();
+        let diagnostics = validate(&changelog);
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0].code, DiagnosticCode::UncategorizedContent);
+    }
+
+    let input = "# Changelog\n## Unreleased\n### Firmware\nComponent description.\n\n#### Added\n- A driver.\n## 1.0 - 2026-11-04\nRelease prose outside a category.\n";
+    let changelog = parse(input, Format::KeepAChangelog).unwrap();
+    let diagnostics = validate(&changelog);
+    assert_eq!(diagnostics.len(), 1);
+    assert_eq!(diagnostics[0].code, DiagnosticCode::UncategorizedContent);
+    assert_eq!(diagnostics[0].line, Some(9));
 }
 
 #[test]
