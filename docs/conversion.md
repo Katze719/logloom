@@ -40,7 +40,7 @@ Towncrier fragments. Use `--fragment-name 123.bugfix.rst` for a Towncrier fragme
 on stdin. Fragment, RST, and GitHub JSON *destinations* aren't offered yet.
 There is no directory aggregation, Git history processing, or network access.
 
-Native output is normalized, even when source and destination match. Entry order
+Native output can normalize layout, even when source and destination match. Entry order
 is retained. Unsupported metadata is kept as labeled prose where possible;
 components may become combined category labels. Raw text/RST and introductions
 with structural headings may become fenced text blocks. Body-local references
@@ -51,6 +51,31 @@ release prose when combining packages. GNU ChangeLog has no version field;
 versions become prose. Unversioned notes can become `Unreleased` in Markdown
 histories. Dates that would prevent recognizing that heading become prose too.
 These adaptations produce conversion warnings.
+
+## Returning to Keep a Changelog
+
+```sh
+logloom convert CHANGELOG.md --input-format keep-a-changelog --output-format json -o changelog.json
+logloom convert changelog.json --input-format json --output-format keep-a-changelog -o restored.md
+```
+
+The JSON document retains the source format and structured content. Returning a
+Keep a Changelog model to its own format preserves release links, ordered
+reference definitions, raw entry Markdown, unnamed sections, component
+introductions, empty categories, and ordinary H5/H6 content. Existing release
+and category headings are reused when they still agree with the model. Edited
+JSON fields take precedence over old headings or a retained source copy.
+
+This path verifies the reconstructed model before accepting it and adds no
+conversion-loss warning when the content and structure match. `--strict` still
+rejects actual validation warnings. Nonrepresentable model edits or foreign
+metadata use the general best-effort writer and its warnings.
+
+The CLI JSON export omits the original source, so byte-for-byte layout isn't
+guaranteed. Blank lines, title styling, and reference-definition syntax can
+change. Spans in the model continue to describe the original input; parsing the
+restored file creates new spans for that file. The same behavior applies to full
+YAML and TOML models that retain `format: keep-a-changelog`.
 
 ## Missing values
 

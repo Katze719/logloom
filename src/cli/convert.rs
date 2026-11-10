@@ -12,6 +12,7 @@ use super::{CliError, diagnostic_error, finish_write, input_name, output, read_i
 use crate::diagnostics::{Reporter, SourceText};
 
 mod import;
+mod keep_a_changelog;
 mod native;
 #[cfg(feature = "csv")]
 mod table;

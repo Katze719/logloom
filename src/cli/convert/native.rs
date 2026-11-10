@@ -14,6 +14,12 @@ pub fn render(
     format: Format,
     warnings: &mut Warnings,
 ) -> Result<Vec<u8>, Failure> {
+    if format == Format::KeepAChangelog
+        && document.format == format
+        && let Some(bytes) = super::keep_a_changelog::render(document)?
+    {
+        return Ok(bytes);
+    }
     let mut output = Buffer::default();
     if document.releases.is_empty() {
         warnings.add("no selected releases: native history output is empty");

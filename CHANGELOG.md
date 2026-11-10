@@ -11,6 +11,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Experimental, best-effort `convert` command for converting between supported
   changelog formats and exports, with explicit loss warnings and placeholders.
 
+### Fixed
+
+- Preserve Keep a Changelog headings, reference links, raw Markdown, and component
+  structure when converting a full document model back to its source format;
+  representable round trips no longer produce conversion-loss warnings.
+
 ## [1.0.1] - 2026-11-10
 
 ### Fixed

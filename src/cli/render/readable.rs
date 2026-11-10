@@ -478,3 +478,35 @@ pub(in crate::cli) fn converted_plain(
 pub(in crate::cli) fn escaped_inline(value: &str) -> String {
     inline(value)
 }
+
+// Keep document-scoped references intact when returning to the source format.
+pub(in crate::cli) fn reference_definitions(
+    links: &[LinkDefinition],
+    output: &mut impl Write,
+) -> io::Result<()> {
+    for link in links {
+        write!(
+            output,
+            "[{}]: <{}>",
+            label(&link.label),
+            destination(&link.destination)
+        )?;
+        if let Some(title) = &link.title {
+            write!(
+                output,
+                " \"{}\"",
+                title.replace('\\', "\\\\").replace('"', "\\\"")
+            )?;
+        }
+        writeln!(output)?;
+    }
+    Ok(())
+}
+
+pub(in crate::cli) fn heading_link(
+    value: &str,
+    url: &str,
+    output: &mut impl Write,
+) -> io::Result<()> {
+    write!(output, "[{}](<{}>)", inline(value), destination(url))
+}

@@ -47,11 +47,18 @@ fn stdin(input: &str, args: &[&str]) -> io::Result<Output> {
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()?;
-    child
+    let written = child
         .stdin
         .take()
         .ok_or_else(|| io::Error::other("stdin not piped"))?
-        .write_all(input.as_bytes())?;
+        .write_all(input.as_bytes());
+    // Usage errors may close stdin before this helper writes even a small input.
+    // Keep the child's actual diagnostic and status available to the caller.
+    if let Err(error) = written
+        && error.kind() != io::ErrorKind::BrokenPipe
+    {
+        return Err(error);
+    }
     child.wait_with_output()
 }
 
@@ -749,4 +756,166 @@ fn markdown_reading_views_recover_components_without_adopting_keep_a_changelog_v
         model.releases[0].status(),
         logloom::ReleaseStatus::Unversioned
     );
+}
+
+fn without_provenance(mut document: Changelog) -> Changelog {
+    document.source.clear();
+    for link in &mut document.links {
+        link.span = logloom::Span::default();
+    }
+    for release in &mut document.releases {
+        release.span = logloom::Span::default();
+        release.date_span = None;
+        for link in &mut release.links {
+            link.span = logloom::Span::default();
+        }
+        for section in &mut release.sections {
+            section.span = logloom::Span::default();
+            for entry in &mut section.entries {
+                entry.span = logloom::Span::default();
+            }
+        }
+    }
+    document
+}
+
+#[test]
+fn keep_a_changelog_json_round_trip_preserves_the_model_including_raw_markdown_and_links() {
+    for file in [
+        "examples/keep-a-changelog.md",
+        "examples/extended-keep-a-changelog.md",
+        "tests/fixtures/components.md",
+        "tests/fixtures/rich.md",
+        "tests/fixtures/reference-links.md",
+        "tests/fixtures/setext.md",
+        "tests/fixtures/unconventional.md",
+        "tests/fixtures/output-rich.md",
+    ] {
+        let source = fs::read_to_string(file).unwrap();
+        for source in [source.clone(), source.replace('\n', "\r\n")] {
+            let json = convert(&source, "keep-a-changelog", "json").unwrap();
+            success(&json, file);
+            let original: Changelog = serde_json::from_slice(&json.stdout).unwrap();
+            assert_eq!(original.source, "");
+            let output = convert(
+                std::str::from_utf8(&json.stdout).unwrap(),
+                "json",
+                "keep-a-changelog",
+            )
+            .unwrap();
+            success(&output, file);
+            assert!(
+                !String::from_utf8_lossy(&output.stderr).contains("conversion-loss"),
+                "{file}: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            let actual = parse(
+                std::str::from_utf8(&output.stdout).unwrap(),
+                Format::KeepAChangelog,
+            )
+            .unwrap();
+            assert_eq!(
+                without_provenance(actual),
+                without_provenance(original),
+                "{file}"
+            );
+        }
+    }
+}
+
+#[test]
+fn extended_example_returns_reference_headings_and_compact_lists_without_loss_warnings() {
+    let json = exported(
+        "examples/extended-keep-a-changelog.md",
+        "keep-a-changelog",
+        "json",
+    )
+    .unwrap();
+    let output = stdin(
+        &json,
+        &[
+            "--input-format",
+            "json",
+            "--output-format",
+            "keep-a-changelog",
+            "--strict",
+        ],
+    )
+    .unwrap();
+    success(&output, "strict Keep a Changelog round trip");
+    let text = String::from_utf8(output.stdout).unwrap();
+    assert!(text.contains("## [2.1.0] - 2026-10-14"));
+    assert!(text.contains("[Unreleased]: <https://example.com/compare/v2.1.0...HEAD>"));
+    assert!(text.contains("[documentation][docs]"));
+    assert!(text.contains("- A streaming export API.\n- A command-line preview"));
+    assert!(text.contains("### Firmware components\n\n#### Added"));
+    assert!(!text.contains("Release link:"));
+}
+
+#[test]
+fn keep_a_changelog_round_trip_respects_edited_json_fields_instead_of_replaying_source() {
+    let source = "# Changelog\n\n## [1.0] - 2026-10-01\n\n### Added\n- Original entry.\n";
+    let mut document = parse(source, Format::KeepAChangelog).unwrap();
+    document.metadata.title = Some("Edited changelog".into());
+    document.releases[0].version = Some("2.0".into());
+    document.releases[0].date = Some("2026-11-04".into());
+    document.releases[0].link = Some("https://example.com/edited".into());
+    document.releases[0].sections[0].category = Some(logloom::Category::Fixed);
+    document.releases[0].sections[0].entries[0].markdown = "- Edited entry.".into();
+    let json = serde_json::to_string(&document).unwrap();
+    let output = stdin(
+        &json,
+        &[
+            "--input-format",
+            "json",
+            "--output-format",
+            "keep-a-changelog",
+            "--strict",
+        ],
+    )
+    .unwrap();
+    success(&output, "edited model");
+    let actual = parse(
+        std::str::from_utf8(&output.stdout).unwrap(),
+        Format::KeepAChangelog,
+    )
+    .unwrap();
+    assert_eq!(actual.metadata.title, document.metadata.title);
+    assert_eq!(actual.releases[0].version, document.releases[0].version);
+    assert_eq!(actual.releases[0].date, document.releases[0].date);
+    assert_eq!(actual.releases[0].link, document.releases[0].link);
+    assert_eq!(
+        actual.releases[0].sections[0].category,
+        Some(logloom::Category::Fixed)
+    );
+    assert_eq!(
+        actual.releases[0].sections[0].entries[0].markdown,
+        "- Edited entry."
+    );
+    assert_eq!(document.source, source);
+}
+
+#[test]
+fn keep_a_changelog_round_trip_keeps_component_introductions_empty_groups_and_deep_headings() {
+    let source = "# Changelog\n\n## [Unreleased]\n\n### Firmware\n\nA component introduction.\n\n#### Added\n\n##### Further details\n\n###### Deep details\n\n### Fixed\n\n#### Ordinary subheading\n\nA paragraph.\n\n### CLI\n\n#### Fixed\n\n#### Fixed\n";
+    let json = convert(source, "keep-a-changelog", "json").unwrap();
+    success(&json, "component source");
+    let output = convert(
+        std::str::from_utf8(&json.stdout).unwrap(),
+        "json",
+        "keep-a-changelog",
+    )
+    .unwrap();
+    success(&output, "component round trip");
+    let actual = parse(
+        std::str::from_utf8(&output.stdout).unwrap(),
+        Format::KeepAChangelog,
+    )
+    .unwrap();
+    assert_eq!(
+        without_provenance(actual),
+        without_provenance(parse(source, Format::KeepAChangelog).unwrap())
+    );
+    assert!(!String::from_utf8_lossy(&output.stdout).contains("Uncategorized"));
+    assert!(!String::from_utf8_lossy(&output.stdout).contains("```text"));
 }
