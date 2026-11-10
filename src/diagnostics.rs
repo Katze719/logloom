@@ -5,6 +5,7 @@ use annotate_snippets::{AnnotationKind, Group, Level, Origin, Renderer, Snippet}
 use clap::ValueEnum;
 use logloom::{DetectionError, Diagnostic, ErrorKind, Format, ParseError, Severity};
 
+mod conversion;
 mod formats;
 mod keep_a_changelog;
 
@@ -92,6 +93,26 @@ impl Reporter {
                 Renderer::plain()
             },
         }
+    }
+
+    pub fn conversion_note(&self) -> String {
+        self.render(
+            Level::NOTE,
+            "experimental-conversion",
+            "Experimental — best effort",
+            "Structure, metadata, and formatting may be lost. Review the converted result.",
+            None,
+        )
+    }
+
+    pub fn conversion_warning(&self, message: &str) -> String {
+        self.render(
+            Level::WARNING,
+            "conversion-loss",
+            message,
+            "Review the result; conversion cannot recover information absent from the input.",
+            None,
+        )
     }
 
     pub fn error(&self, id: &str, message: &str, help: &str) -> String {

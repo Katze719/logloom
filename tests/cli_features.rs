@@ -17,6 +17,7 @@ fn completion_scripts_include_current_commands_and_filters() {
         for fragment in [
             "logloom",
             "parse",
+            "convert",
             "validate",
             "detect",
             "input-format",

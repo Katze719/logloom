@@ -432,3 +432,49 @@ fn fence(value: &str) -> String {
     }
     "`".repeat(longest.saturating_add(1))
 }
+
+// Conversion writers resolve both document and body-local references before
+// combining content into a target that may not support reference definitions.
+pub(in crate::cli) fn converted_markdown(
+    document: &Changelog,
+    release: &Release,
+    entry: &logloom::Entry,
+    output: &mut impl Write,
+) -> io::Result<()> {
+    if entry.kind == EntryKind::Text {
+        let fence = fence(&entry.markdown);
+        writeln!(
+            output,
+            "{fence}text\n{}\n{fence}\n",
+            entry.markdown.trim_end_matches(['\r', '\n'])
+        )
+    } else {
+        scoped_block(
+            output,
+            &entry.markdown,
+            &references(document.links.iter().chain(&release.links)),
+        )
+    }
+}
+
+pub(in crate::cli) fn converted_plain(
+    document: &Changelog,
+    release: &Release,
+    value: &str,
+    kind: EntryKind,
+    output: &mut impl Write,
+) -> io::Result<()> {
+    if kind == EntryKind::Text {
+        block(output, value)
+    } else {
+        plain(
+            value,
+            &references(document.links.iter().chain(&release.links)),
+            output,
+        )
+    }
+}
+
+pub(in crate::cli) fn escaped_inline(value: &str) -> String {
+    inline(value)
+}

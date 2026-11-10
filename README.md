@@ -15,7 +15,7 @@ A CLI and Rust library for the changelog you've already written.
 - [GNU NEWS](examples/gnu-news.txt)
 - [GNU ChangeLog](examples/gnu-ChangeLog)
 
-[Syntax and limits](docs/formats/README.md) - [All examples](examples/README.md) - [Output formats](docs/output-formats.md)
+[Syntax and limits](docs/formats/README.md) - [All examples](examples/README.md) - [Output formats](docs/output-formats.md) - [Experimental conversion](docs/conversion.md)
 
 Yes, there are this many ways to write down "fixed a bug".
 

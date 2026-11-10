@@ -1,5 +1,8 @@
 # Output formats
 
+To read an export back or write a native changelog format, use
+[experimental best-effort conversion](conversion.md).
+
 ```sh
 logloom parse CHANGELOG.md --output-format yaml
 logloom parse CHANGELOG.md --latest --output-format text

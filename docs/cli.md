@@ -46,6 +46,18 @@ logloom parse CHANGELOG.md --unreleased --component "Firmware components"
 `--release` selects a release identifier. `--latest` compares calendar dates;
 `--first-published` uses file order. [Filters](filters.md) covers the details.
 
+## Convert (experimental)
+
+```sh
+logloom convert CHANGELOG.md --output-format towncrier
+logloom convert changelog.json --input-format json --output-format keep-a-changelog -o converted.md
+```
+
+**Experimental — best effort.** All native formats and exports can be converted
+in either direction. Required missing values get documented placeholders;
+losses produce warnings on stderr. Review the result. `--strict` also rejects
+conversion warnings. See [conversion](conversion.md) for mappings and limits.
+
 ## Inspect or check
 
 ```sh

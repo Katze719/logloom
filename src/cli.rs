@@ -10,6 +10,7 @@ use logloom::{Changelog, Diagnostic, Format, ParseOptions, Severity, validate};
 
 use crate::diagnostics::{ColorMode, Reporter, SourceText};
 
+mod convert;
 mod help;
 mod output;
 mod render;
@@ -46,6 +47,8 @@ struct Cli {
 enum Command {
     /// Parse a changelog file (or - for standard input).
     Parse(ParseArgs),
+    /// Experimental — best effort conversion between changelog and export formats.
+    Convert(convert::ConvertArgs),
     /// Check a changelog without exporting it; diagnostics go to stderr.
     #[command(after_help = help::validate())]
     Validate(ValidateArgs),
@@ -187,6 +190,7 @@ pub fn run() -> Result<ExitCode, CliError> {
     };
     match cli.command {
         Command::Parse(args) => parse_file(&args, options, &reporter),
+        Command::Convert(args) => convert::run(&args, options, &reporter),
         Command::Validate(args) => validate_file(&args, options, &reporter),
         Command::Completions { shell } => {
             let mut command = Cli::command().bin_name("logloom");

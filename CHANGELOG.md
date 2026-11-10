@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Experimental, best-effort `convert` command for converting between supported
+  changelog formats and exports, with explicit loss warnings and placeholders.
+
 ## [1.0.1] - 2026-11-10
 
 ### Fixed

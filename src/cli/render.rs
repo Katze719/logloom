@@ -5,7 +5,7 @@ use clap::ValueEnum;
 use logloom::{Changelog, Format, LinkDefinition, Metadata, Release, ReleaseStatus};
 use serde::Serialize;
 
-mod readable;
+pub(super) mod readable;
 #[cfg(feature = "csv")]
 mod table;
 
@@ -96,8 +96,8 @@ pub fn render(changelog: &Changelog, format: OutputFormat) -> Result<Vec<u8>, Bo
 // buffered export before opening the destination, just as we bound parser input.
 const MAX_OUTPUT_BYTES: usize = 256 * 1024 * 1024;
 
-struct Buffer {
-    bytes: Vec<u8>,
+pub(super) struct Buffer {
+    pub(super) bytes: Vec<u8>,
     limit: usize,
 }
 

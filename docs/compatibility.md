@@ -16,3 +16,8 @@ Spans and retained `source` always describe the original input, including after
 model edits or CLI filtering. CLI exports omit `source`. Independently decoded
 GitHub bodies store reference definitions in `releases[].links`; ordinary
 Markdown documents use the shared top-level `links`.
+
+`convert` is explicitly experimental and best effort. Its native output mappings,
+placeholder policies, and import heuristics may change. The existing document
+schema and stable parsing commands retain the guarantees above. See
+[conversion](conversion.md).

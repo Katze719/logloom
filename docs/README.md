@@ -10,6 +10,7 @@ Start with [CLI installation](../README.md#install) or [adding the Rust crate](l
 | Just the changes you need | [Filters](filters.md) |
 | Finding the format or checking a file | [Detection and validation](detection.md) |
 | A different way out | [Output formats](output-formats.md) |
+| Converting between formats | [Experimental conversion](conversion.md) |
 | Something complaining at you | [Diagnostics](cli.md#diagnostics) |
 | The Rust bits | [Library](library.md) |
 | Making jq do the work | [JSON](json.md) |
