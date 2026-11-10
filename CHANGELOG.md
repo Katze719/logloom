@@ -13,6 +13,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Run automatic releases only when a GitHub release is published, preventing
+  duplicate build and publishing runs from its tag-push event.
 - Preserve Keep a Changelog headings, reference links, raw Markdown, and component
   structure when converting a full document model back to its source format;
   representable round trips no longer produce conversion-loss warnings.

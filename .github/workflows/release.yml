@@ -1,8 +1,7 @@
 name: Release
 
 on:
-  push:
-    tags: ['v[0-9]*']
+  # A release can create its tag; listening to both events publishes twice.
   release:
     types: [published]
   workflow_dispatch:
