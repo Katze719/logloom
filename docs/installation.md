@@ -44,15 +44,15 @@ Choose one, using your downloaded version and architecture:
 
 ```sh
 # Standalone tarball
-tar -xzf logloom-1.0.0-x86_64-unknown-linux-musl.tar.gz
+tar -xzf logloom-1.0.1-x86_64-unknown-linux-musl.tar.gz
 mkdir -p ~/.local/bin
 install -m 755 logloom ~/.local/bin/logloom
 
 # Debian / Ubuntu (use the filename you downloaded)
-sudo apt install ./logloom_1.0.0-1_amd64.deb
+sudo apt install ./logloom_1.0.1-1_amd64.deb
 
 # Fedora / RHEL (same idea)
-sudo dnf install ./logloom-1.0.0-1.x86_64.rpm
+sudo dnf install ./logloom-1.0.1-1.x86_64.rpm
 ```
 
 DEB and RPM packages install `/usr/bin/logloom`; remove them with
