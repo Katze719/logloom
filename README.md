@@ -36,7 +36,7 @@ or [CI builds](docs/installation.md) for Windows x64 and Linux x64/ARM64 install
 logloom parse
 logloom detect
 logloom validate
-logloom validate --release 1.0.1
+logloom validate --release 1.1.0
 logloom parse CHANGELOG.md --input-format conventional-changelog
 logloom parse CHANGELOG.md --latest --category Fixed -o release.json
 logloom parse CHANGELOG.md --latest --output-format markdown -o release.md
