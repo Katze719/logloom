@@ -61,7 +61,7 @@ pub const fn validation_details(code: DiagnosticCode) -> (&'static str, &'static
         ),
         DiagnosticCode::UncategorizedContent => (
             "uncategorized-content",
-            "Place entries under a ### category, or under #### categories inside a ### component. Components may have introductory Markdown before their first category. Uncategorized content is preserved.",
+            "Releases and components may have introductory Markdown, including lists, before their first category. Uncategorized content is preserved.",
         ),
         _ => (
             "validation",

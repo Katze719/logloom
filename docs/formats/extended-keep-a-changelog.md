@@ -37,10 +37,11 @@ Each section gets its component name. The introduction has no category:
   A custom H3 without H4 remains a custom category. Standard names ignore ASCII case.
 - Sections stay in source order, including repeated components and categories.
   New H3 or release headings reset the component context.
-- Introductory Markdown before a component's first category is accepted without
-  warnings and retained as an uncategorized section with the same component.
-  List items there still warn: place changes under a category. Descriptions
-  inside categories are also accepted. Empty categories are retained.
+- Introductory Markdown before a release's or component's first category is accepted
+  without warnings and retained as an uncategorized section. Component introductions
+  keep the component name.
+  Lists in introductions and descriptions inside categories are also accepted.
+  Empty categories are retained.
 - H5/H6 subheadings remain Markdown entries. This extension has one component
   level; nested component trees are not inferred. Headings inside lists, quotes,
   and code do not affect the grouping.

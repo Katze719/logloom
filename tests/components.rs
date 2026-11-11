@@ -11,22 +11,28 @@ fn extended_example_exposes_categories_for_their_component() {
     assert_eq!(changelog.releases.len(), 4);
     let release = &changelog.releases[3];
     assert_eq!(release.version.as_deref(), Some("1.0.0"));
-    assert_eq!(release.sections.len(), 2);
+    assert_eq!(release.sections.len(), 3);
     assert_eq!(
         release.sections[0].component.as_deref(),
         Some("Firmware components")
     );
-    assert_eq!(release.sections[0].category, Some(Category::Added));
-    assert_eq!(release.sections[0].heading.as_deref(), Some("#### Added"));
-    assert_eq!(
-        release.sections[0].entries[0].markdown,
-        "- Initial firmware components for Lantern."
-    );
+    assert_eq!(release.sections[0].category, None);
+    assert_eq!(release.sections[0].entries[0].kind, EntryKind::Markdown);
     assert_eq!(
         release.sections[1].component.as_deref(),
         Some("Firmware components")
     );
-    assert_eq!(release.sections[1].category, Some(Category::Changed));
+    assert_eq!(release.sections[1].category, Some(Category::Added));
+    assert_eq!(release.sections[1].heading.as_deref(), Some("#### Added"));
+    assert_eq!(
+        release.sections[1].entries[0].markdown,
+        "- Initial firmware components for Lantern."
+    );
+    assert_eq!(
+        release.sections[2].component.as_deref(),
+        Some("Firmware components")
+    );
+    assert_eq!(release.sections[2].category, Some(Category::Changed));
     assert!(
         changelog.releases[0]
             .sections
@@ -125,7 +131,7 @@ fn component_descriptions_accept_multiple_markdown_blocks_and_category_descripti
 }
 
 #[test]
-fn uncategorized_component_lists_and_release_prose_still_warn() {
+fn component_introductions_accept_lists() {
     for body in [
         "- An uncategorized change.\n",
         "1. An uncategorized change.\n",
@@ -134,17 +140,13 @@ fn uncategorized_component_lists_and_release_prose_still_warn() {
             "# Changelog\n## Unreleased\n### Firmware\nComponent description.\n\n{body}\n#### Added\n- A driver.\n"
         );
         let changelog = parse(&input, Format::KeepAChangelog).unwrap();
-        let diagnostics = validate(&changelog);
-        assert_eq!(diagnostics.len(), 1);
-        assert_eq!(diagnostics[0].code, DiagnosticCode::UncategorizedContent);
+        assert_eq!(validate(&changelog), Vec::new());
+        assert_eq!(changelog.releases[0].sections[0].entries.len(), 2);
+        assert_eq!(
+            changelog.releases[0].sections[0].entries[1].kind,
+            EntryKind::ListItem
+        );
     }
-
-    let input = "# Changelog\n## Unreleased\n### Firmware\nComponent description.\n\n#### Added\n- A driver.\n## 1.0 - 2026-11-04\nRelease prose outside a category.\n";
-    let changelog = parse(input, Format::KeepAChangelog).unwrap();
-    let diagnostics = validate(&changelog);
-    assert_eq!(diagnostics.len(), 1);
-    assert_eq!(diagnostics[0].code, DiagnosticCode::UncategorizedContent);
-    assert_eq!(diagnostics[0].line, Some(9));
 }
 
 #[test]

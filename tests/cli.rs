@@ -554,12 +554,13 @@ fn extended_keep_a_changelog_example_emits_component_categories_without_warnings
         changelog.releases[3].sections[0].component.as_deref(),
         Some("Firmware components")
     );
+    assert_eq!(changelog.releases[3].sections[0].category, None);
     assert_eq!(
-        changelog.releases[3].sections[0].category,
+        changelog.releases[3].sections[1].category,
         Some(logloom::Category::Added)
     );
     assert_eq!(
-        changelog.releases[3].sections[1].category,
+        changelog.releases[3].sections[2].category,
         Some(logloom::Category::Changed)
     );
 }

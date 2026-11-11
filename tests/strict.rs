@@ -51,6 +51,7 @@ fn warnings_are_fatal_only_when_strict_is_requested() {
 fn strict_accepts_clean_inputs_and_uses_each_formats_own_conventions() {
     for file in [
         "tests/fixtures/standard.md",
+        "examples/extended-keep-a-changelog.md",
         "examples/conventional-changelog.md",
         "examples/changesets.md",
         "examples/changesets-fragment.md",

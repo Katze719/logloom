@@ -55,12 +55,14 @@ is fine. Dates are optional, and we keep their text. Nothing gets sorted for you
 | Two releases named `1.0` | Error: duplicate identifier |
 | `## nightly` | Warning: published release has no date |
 | `### Performance` | Warning: custom category, content preserved |
-| Missing title or category | Warning; content preserved |
+| Missing title | Warning; content preserved |
 | Dated or misplaced Unreleased; dates out of order | Warning; nothing is reordered |
 
 Dates use Gregorian `YYYY-MM-DD`, years 0001–9999. Empty groups and non-SemVer
 versions are fine. Validation is a separate library call; the
 [CLI](../cli.md#diagnostics) checks automatically and holds back output on errors.
+Release descriptions before the first category, including lists, are accepted
+without warnings and preserved as uncategorized Markdown sections.
 
 ## The small print
 

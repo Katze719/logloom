@@ -848,7 +848,9 @@ fn extended_example_returns_reference_headings_and_compact_lists_without_loss_wa
     assert!(text.contains("[Unreleased]: <https://example.com/compare/v2.1.0...HEAD>"));
     assert!(text.contains("[documentation][docs]"));
     assert!(text.contains("- A streaming export API.\n- A command-line preview"));
-    assert!(text.contains("### Firmware components\n\n#### Added"));
+    assert!(text.contains(
+        "### Firmware components\n\nThis release adds standalone Extended Keep a Changelog validation\n\n#### Added"
+    ));
     assert!(!text.contains("Release link:"));
 }
 

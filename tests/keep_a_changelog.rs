@@ -126,10 +126,51 @@ fn missing_dates_custom_categories_and_non_semver_are_preserved() {
         DiagnosticCode::MissingTitle,
         DiagnosticCode::MissingDate,
         DiagnosticCode::CustomCategory,
-        DiagnosticCode::UncategorizedContent,
         DiagnosticCode::PendingReleaseOrder,
     ] {
         assert!(diagnostics.iter().any(|diagnostic| diagnostic.code == code));
+    }
+}
+
+#[test]
+fn release_descriptions_are_preserved_without_warnings() {
+    let description =
+        "First paragraph with **emphasis**.\n\nSecond paragraph.\n\n> Migration note.\n";
+    for label in ["[Unreleased]", "[1.0.0] - 2026-11-04"] {
+        for categories in ["", "\n### Added\n- A change.\n"] {
+            let input = format!("# Changelog\n## {label}\n{description}{categories}");
+            let changelog = parse(&input, Format::KeepAChangelog).unwrap();
+            let introduction = &changelog.releases[0].sections[0];
+            assert_eq!(introduction.category, None);
+            assert_eq!(introduction.component, None);
+            assert_eq!(introduction.entries.len(), 3);
+            assert_eq!(
+                introduction.entries[0].markdown,
+                "First paragraph with **emphasis**."
+            );
+            assert_eq!(introduction.entries[1].markdown, "Second paragraph.");
+            assert_eq!(introduction.entries[2].markdown, "> Migration note.");
+            assert_eq!(validate(&changelog), Vec::new());
+            assert_eq!(changelog.source, input);
+        }
+    }
+}
+
+#[test]
+fn release_introductions_accept_lists_with_or_without_descriptions() {
+    for label in ["[Unreleased]", "[1.0.0] - 2026-11-04"] {
+        for description in ["", "Release description.\n\n"] {
+            for list in ["- A change.\n", "1. A change.\n"] {
+                let input = format!("# Changelog\n## {label}\n{description}{list}");
+                let changelog = parse(&input, Format::KeepAChangelog).unwrap();
+                assert_eq!(validate(&changelog), Vec::new());
+                let introduction = &changelog.releases[0].sections[0];
+                assert_eq!(introduction.category, None);
+                let entry = introduction.entries.last().unwrap();
+                assert_eq!(entry.kind, EntryKind::ListItem);
+                assert_eq!(entry.markdown, list.trim());
+            }
+        }
     }
 }
 

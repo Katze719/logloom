@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Category, Changelog, EntryKind, Format};
+use crate::{Category, Changelog, Format};
 
 /// Importance of a convention diagnostic. Parsing itself has already succeeded.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -36,7 +36,7 @@ pub enum DiagnosticCode {
     ReleaseDateOrder,
     /// A group uses an unknown category name.
     CustomCategory,
-    /// A release contains content outside a named category.
+    /// Legacy code for content outside a named category; introductions are now accepted.
     UncategorizedContent,
 }
 
@@ -69,8 +69,8 @@ impl Diagnostic {
 
 /// Check the source format's conventions without mutating or sorting content.
 ///
-/// Empty releases and categories are accepted. Component introductions consisting
-/// of Markdown blocks are accepted; uncategorized list items still warn.
+/// Empty releases and categories are accepted. Release and component introductions
+/// are accepted, including lists and other Markdown blocks.
 /// Version identifiers are opaque.
 /// Dates use four-digit years 0001–9999 and the Gregorian calendar. Unknown
 /// categories, missing dates, and unusual ordering produce Keep a Changelog warnings; invalid
@@ -159,25 +159,13 @@ fn validate_keep_a_changelog(changelog: &Changelog) -> Vec<Diagnostic> {
             None => {}
         }
         for section in &release.sections {
-            match &section.category {
-                Some(Category::Custom(_)) => report(
+            if matches!(section.category, Some(Category::Custom(_))) {
+                report(
                     Severity::Warning,
                     DiagnosticCode::CustomCategory,
                     Some(section.span.line),
                     "category is outside the standard vocabulary",
-                ),
-                None if section.entries.iter().any(|entry| {
-                    section.component.is_none() || entry.kind != EntryKind::Markdown
-                }) =>
-                {
-                    report(
-                        Severity::Warning,
-                        DiagnosticCode::UncategorizedContent,
-                        Some(section.span.line),
-                        "content appears outside a named category",
-                    );
-                }
-                _ => {}
+                );
             }
         }
     }
